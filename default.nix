@@ -1,5 +1,8 @@
-{ pkgs ? (import <nixpkgs> {}) }:
+{ nixpkgs ? null }:
 let
+   pkgs = import (if nixpkgs == null
+                  then  <nixpkgs> 
+                  else nixpkgs) {};
    callPackage = pkgs.lib.callPackageWith self;
    self = rec {
      inherit pkgs callPackage;

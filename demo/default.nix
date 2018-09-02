@@ -1,5 +1,5 @@
-{ ouroboros ? (import ../default.nix {}) }:
-with ouroboros.builders;
+{ ulic ? (import ../default.nix {}) }:
+with ulic.builders;
 {
   regular = mkBuild {
     allowedSystemCmds = [ "/usr/bin/python3" ];
