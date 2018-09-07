@@ -10,7 +10,7 @@ rec {
    , allowedSystemCmds ? []
    , buildInputs ? []
    , namePrefix ? "unholy"
-   , impureBuild ? true
+   , ensureRebuild ? true
    , envVars ? {}
    , passThru ? {} }:
    assert (script == null && scriptPath == null) ->
@@ -26,7 +26,9 @@ rec {
 
      coreAttributes = {
        inherit system allowedSystemCmds;
-       name = if namePrefix == null then name else "${ namePrefix }-${name}";
+       name = (if namePrefix == null
+               then name
+               else "${ namePrefix }-${name}");
        builder = "${ bash }/bin/bash";
        args = [ ./base-builder.sh ];
        stdenvUtilsPath = ./stdenv-utils.sh;
@@ -67,7 +69,7 @@ rec {
             // environmentVariables
             # make sure we modify the build inputs so we can guarantee that the
             # build is going to be executed, we are not looking for purity here.
-            // optionalAttrs (impureBuild == true) { variant = builtins.currentTime; }
+            // optionalAttrs (ensureRebuild == true) { variant = builtins.currentTime; }
             // optionalAttrs (script != null) { inherit script; }
             // optionalAttrs (scriptPath != null) { inherit scriptPath; }
             // passThru
