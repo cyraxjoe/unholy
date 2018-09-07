@@ -3,8 +3,50 @@ let
    inherit (builtins) removeAttrs getAttr;
    inherit (utils) bigErrorMsg;
    inherit (builders) mkBuild;
+   inherit (pkgs) fetchurl;
+   inherit (pkgs.lib) lists;
 in
 {
+  mkPythonVirtualEnv =
+   { src
+   , systemPython ? "/usr/bin/python"
+   , virtualEnvSrc ? null
+   , preLoadedPythonDepList ? []
+   , exposedCmds ? []
+   , ...} @ args:
+   let
+      mkBuildArgs = removeAttrs args [
+         "src" "systemPython"
+         "virtualEnvSrc"
+         "preLoadedPythonDepList"
+         "exposedCmds"
+      ];
+      virtualEnvTar = (
+       if virtualEnvSrc != null
+         then  virtualEnvSrc
+       else  fetchurl {
+         url = "https://pypi.io/packages/source/v/virtualenv/virtualenv-16.0.0.tar.gz";
+         sha256 = "0lpp31kwjmfyzmgdmbsps4inj08bg4chjkgkz4daj52fnp0b81ya";
+       });
+
+       coreAttributes = {
+         namePrefix = null;
+         allowedSystemCmds = [
+         "/usr/bin/lsb_release"
+         "/usr/bin/dpkg-query" # dependency of lsb_release
+         "/bin/uname"];
+         buildInputs = with pkgs; [ gnutar gzip which ];
+         scriptPath = ./python-venv-builder.sh;
+         passThru = {
+          inherit src systemPython virtualEnvTar exposedCmds;
+          preLoadedPythonDeps = lists.flatten (
+           map (d: [ d.name d.src ]) preLoadedPythonDepList);
+         };
+
+       };
+    in
+       mkBuild (coreAttributes // mkBuildArgs);
+
   mkPythonBuild =
    { src
    , requirementsPath ? "requirements.txt"
@@ -41,4 +83,6 @@ in
       };
     in
      mkBuild (mkBuildArgs // coreAttributes);
+
+
 }

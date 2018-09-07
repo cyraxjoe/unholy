@@ -15,8 +15,6 @@ virtualenv _env
 PS1=build # define PS1, otherwise the virtualenv complains
 source _env/bin/activate
 pip install no-manylinux1
-# TEMP hack
-export SSH_AUTH_SOCK=/run/user/1000/keyring/ssh
 pip download  --no-cache-dir -d $DEP_DIR -r $REQUIREMENTS_OUT
 # build the wheel for the project
 pushd $PROJECT_SRC

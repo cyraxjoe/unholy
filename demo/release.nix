@@ -1,5 +1,5 @@
-{ ulic, nixpkgs }:
-with (import ulic { inherit nixpkgs; } ).builders;
+{ unholy, nixpkgs }:
+with (import unholy { inherit nixpkgs; } ).builders;
 let
   jobs = {
      demo = mkBuild {

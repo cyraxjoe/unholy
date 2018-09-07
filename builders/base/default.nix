@@ -9,7 +9,7 @@ rec {
    , scriptPath ? null
    , allowedSystemCmds ? []
    , buildInputs ? []
-   , namePrefix ? "ci-build"
+   , namePrefix ? "unholy"
    , impureBuild ? true
    , envVars ? {}
    , passThru ? {} }:
@@ -26,7 +26,7 @@ rec {
 
      coreAttributes = {
        inherit system allowedSystemCmds;
-       name = "${ namePrefix }-${name}";
+       name = if namePrefix == null then name else "${ namePrefix }-${name}";
        builder = "${ bash }/bin/bash";
        args = [ ./base-builder.sh ];
        stdenvUtilsPath = ./stdenv-utils.sh;
@@ -41,11 +41,17 @@ rec {
           if [[ -n $allowedSystemCmds ]]; then
               _TEMP_PATH="$(pwd)/.build_path"
               mkdir $_TEMP_PATH
+              set +e
               for cmd in $allowedSystemCmds; do
                   full_cmd=$(readlink -e $cmd)
-                  base_name=$(basename $cmd)
-                  ln -s $full_cmd $_TEMP_PATH/$base_name
+                  if (( $? != 0 )); then
+                      echo "The command '$cmd' is not present in the system. Ignoring" > /dev/stderr
+                  else
+                      base_name=$(basename $cmd)
+                      ln -s $full_cmd $_TEMP_PATH/$base_name
+                  fi
               done
+              set -e
               PATH="$PATH:$_TEMP_PATH"
           fi
           export PATH
