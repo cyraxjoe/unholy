@@ -10,9 +10,11 @@ rec {
    , allowedSystemCmds ? []
    , buildInputs ? []
    , namePrefix ? "unholy"
-   , ensureRebuild ? true
+   , ensureRebuild ? false
    , envVars ? {}
-   , passThru ? {} }:
+   , directAttrs ? {}
+   , passThru ? {}
+   , meta ? {} }:
    assert (script == null && scriptPath == null) ->
       abort (bigErrorMsg "Missing 'script' or 'scriptPath' parameter.");
    assert (script != null && scriptPath != null) ->
@@ -21,7 +23,7 @@ rec {
      inherit(pkgs) system bash coreutils moreutils gnused;
      inherit(pkgs.lib)
        optional optionalAttrs concatStringsSep makeOverridable
-       mapAttrs' nameValuePair strings;
+       mapAttrs' nameValuePair strings addMetaAttrs;
      inherit(builtins) currentTime;
 
      coreAttributes = {
@@ -63,16 +65,16 @@ rec {
        mapAttrs' (name: value:
                    nameValuePair "ENV_${strings.toUpper name}" value)
                  envVars;
-   in
-     makeOverridable derivation (
+    plainDerivation = derivation (
        coreAttributes
-            // environmentVariables
-            # make sure we modify the build inputs so we can guarantee that the
-            # build is going to be executed, we are not looking for purity here.
-            // optionalAttrs (ensureRebuild == true) { variant = builtins.currentTime; }
-            // optionalAttrs (script != null) { inherit script; }
-            // optionalAttrs (scriptPath != null) { inherit scriptPath; }
-            // passThru
-
-     );
+       // environmentVariables
+       # make sure we modify the build inputs so we can guarantee that the
+       # build is going to be executed, we are not looking for purity here.
+       // directAttrs
+       // optionalAttrs (ensureRebuild == true) { variant = builtins.currentTime; }
+       // optionalAttrs (script != null) { inherit script; }
+       // optionalAttrs (scriptPath != null) { inherit scriptPath; }
+    );
+   in
+    plainDerivation // passThru // { inherit meta; };
 }
