@@ -1,5 +1,5 @@
-{ ulic ? (import ../default.nix {}) }:
-with ulic.builders;
+{ unholy ? (import ../default.nix {}) }:
+with unholy.builders;
 {
   regular = mkBuild {
     allowedSystemCmds = [ "/usr/bin/python3" ];
