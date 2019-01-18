@@ -31,7 +31,7 @@ installPythonPackage(){
     PATH="/usr/bin:$PATH"
     if [[ -n $requires_deps ]]; then
         # remove any "-e" dependencies
-        # those should be provided as en element in the 
+        # those should be provided as an element in the
         # preLoadedPythonDeps list
         sed -i '/^-e.*/d' $requires_deps
         $VENV_OUT_DIR/bin/pip  --no-cache-dir --isolated install -r $requires_deps

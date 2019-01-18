@@ -11,14 +11,14 @@ let
    , envVars ? {}
    , directAttrs ? {}
    , passThru ? {}
+   , logExecution ? true
    , meta ? {} }:
    let
     inherit (pkgs) bash system;
     inherit(pkgs.lib)
       optionalAttrs concatStringsSep  mapAttrs' nameValuePair strings;
     coreAttributes = {
-      inherit system;
-      inherit allowedSystemCmds;
+      inherit system allowedSystemCmds logExecution;
       name = (if namePrefix == null
               then name
               else "${ namePrefix }-${name}");

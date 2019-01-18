@@ -8,6 +8,7 @@
 , exposedCmds ? []
 , useBinaryWheels ? false
 , namePrefix ? null
+, logExecution ? false
 , ...} @ args:
 let
    inherit (builtins) removeAttrs;
@@ -29,6 +30,7 @@ let
 
 
   coreAttributes = {
+    inherit logExecution;
     namePrefix = args.namePrefix or null;
     allowedSystemCmds = [
       "/usr/bin/ldd"
