@@ -18,8 +18,8 @@ let
    inherit (builders) mkBuild;
 
   defaultVirtualEnvSrc = fetchurl {
-     url = "https://pypi.io/packages/source/v/virtualenv/virtualenv-16.0.0.tar.gz";
-     sha256 = "0lpp31kwjmfyzmgdmbsps4inj08bg4chjkgkz4daj52fnp0b81ya";
+     url = "https://pypi.io/packages/source/v/virtualenv/virtualenv-16.2.0.tar.gz";
+     sha256 = "1ka0rlwhcsqkv995jr1xfglhj9d94avbwippxszx52xilwqnhwzs";
    };
 
   virtualEnvTar = (
@@ -27,7 +27,6 @@ let
       then  virtualEnvSrc
     else  defaultVirtualEnvSrc
   );
-
 
   coreAttributes = {
     inherit logExecution;
