@@ -1,18 +1,47 @@
 
+CACHE_DIR=$(pwd)
 ### setup virtualenv
 tar xvzf $virtualEnvTar | tee untar.log
 VENV_EXEC=$(readlink -e $(head -n 1 untar.log)/virtualenv.py)
-VENV_OUT_DIR=$out/envs/$name
 rm untar.log
-mkdir $out/envs
+
+
+isExternalBuild(){
+    # when the storePath is defined, we assume this is
+    # some sort of external build
+    set +u # to test the storePath variable
+    if [[ -z "$storePath" ]]; then
+        set -u
+        return 1
+    else
+        return 0
+    fi
+}
+
+
+if isExternalBuild; then
+    # make the external store path
+    # this is a rather.. sad hack on the nix store,
+    # but you know.. you're pretty unholy at this point
+    mkdir -p $storePath/envs
+    VENV_OUT_DIR=$storePath/envs/$name
+else
+    # regular local build
+    mkdir $out/envs
+    VENV_OUT_DIR=$out/envs/$name
+fi
 
 virtualenv(){
-    $systemPython  $VENV_EXEC $*
+    $systemPython  $VENV_EXEC  $*
+}
+
+pip_wrapper(){
+    $VENV_OUT_DIR/bin/pip --cache-dir "$CACHE_DIR" $*
 }
 
 ###
 ## create the virtualenv
-virtualenv $VENV_OUT_DIR
+virtualenv  $VENV_OUT_DIR
 
 
 installPythonPackage(){
@@ -34,10 +63,10 @@ installPythonPackage(){
         # those should be provided as an element in the
         # preLoadedPythonDeps list
         sed -i '/^-e.*/d' $requires_deps
-        $VENV_OUT_DIR/bin/pip  --no-cache-dir --isolated install -r $requires_deps
-        $VENV_OUT_DIR/bin/pip  --no-cache-dir --isolated install --no-index .
+        pip_wrapper --isolated install -r $requires_deps
+        pip_wrapper --isolated install --no-index .
     else
-        $VENV_OUT_DIR/bin/pip --isolated --no-cache-dir  install .
+        pip_wrapper --isolated install .
     fi
     PATH=$ORG_PATH
     popd
@@ -76,7 +105,7 @@ exposeCmdsFromEnv(){
 if [[ -z $useBinaryWheels ]]; then
     # exclude the manylinux wheels
     # by installing no-manylinux (or we could just put the flag)
-    $VENV_OUT_DIR/bin/pip --isolated --no-cache-dir install no-manylinux1
+    pip_wrapper --isolated  install no-manylinux1
 fi
 
 ######################
@@ -93,11 +122,11 @@ executables_in_venv=$VENV_OUT_DIR/native_executables.txt
 venv_requirements=$VENV_OUT_DIR/requirements.txt
 python_version_file=$VENV_OUT_DIR/python_version.txt
 # record the LSB release information
-lsb_release --all > $venv_system_info
+which lsb_release > /dev/null 2>&1 &&  lsb_release --all > $venv_system_info
 ###
 ##
 # detect which executables are we delivering with the package
-for file_in_out in $(find  "$out" -type f  -executable  -or -name '*.so'); do
+for file_in_out in $(find  "$VENV_OUT_DIR" -type f  -executable  -or -name '*.so'); do
     if [[ $(file -b  $file_in_out | grep ELF) ]]; then
         echo "################################################################"
         echo $file_in_out
@@ -105,8 +134,16 @@ for file_in_out in $(find  "$out" -type f  -executable  -or -name '*.so'); do
     fi
 done > $executables_in_venv
 #######
-$VENV_OUT_DIR/bin/pip freeze --all > $venv_requirements
-$VENV_OUT_DIR/bin/python --version >  $python_version_file
+pip_wrapper freeze --all > $venv_requirements
+$VENV_OUT_DIR/bin/python --version > $python_version_file 2>&1
+if isExternalBuild; then
+    # extract the virtualenv from the $storePath
+    # and remove the path from the nix store,
+    # the path is irrelevant for this nix store
+    mkdir $out/envs
+    mv $VENV_OUT_DIR $out/envs/$name
+    rm -rf $storePath
+fi
 
 addHydraBuildProduct doc "System Infomation" $venv_system_info
 addHydraBuildProduct doc "Executables"  $executables_in_venv

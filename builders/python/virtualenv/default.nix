@@ -9,6 +9,12 @@
 , useBinaryWheels ? false
 , namePrefix ? null
 , logExecution ? false
+# define this parameter to create the venv on this path,
+# usefull to build the venv inside a docker container
+, storePath ? ""
+# try attribute is for small experiments... don't
+# relly a lot on it
+, extraDirectAttrs ? {}
 , ...} @ args:
 let
    inherit (builtins) removeAttrs;
@@ -43,14 +49,14 @@ let
       coreutils gnugrep
     ];
     scriptPath = ./python-venv-builder.sh;
-    directAttrs = {
+    directAttrs = ({
       preLoadedPythonDeps = lists.flatten (map (d: [ d.name d.src ]) preLoadedPythonDeps);
       inherit mainPackageName src systemPython virtualEnvSrc
               exposedCmds useBinaryWheels virtualEnvTar
-              installDepsFromRequires;
-    };
+              installDepsFromRequires storePath;
+    } // extraDirectAttrs) ;
   };
 
-  mkBuildArgs = removeAttrs args (attrNames coreAttributes.directAttrs);
+  mkBuildArgs = removeAttrs args ((attrNames coreAttributes.directAttrs) ++ [ "extraDirectAttrs"]);
 in
    mkBuild (coreAttributes // mkBuildArgs)
