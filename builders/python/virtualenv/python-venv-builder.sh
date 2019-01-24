@@ -5,15 +5,15 @@ tar xvzf $virtualEnvTar | tee untar.log
 VENV_EXEC=$(readlink -e $(head -n 1 untar.log)/virtualenv.py)
 rm untar.log
 
-
 isExternalBuild(){
     # when the storePath is defined, we assume this is
     # some sort of external build
     set +u # to test the storePath variable
     if [[ -z "$storePath" ]]; then
-        set -u
+        set -u # revert the +u
         return 1
     else
+        set -u # revert the +u
         return 0
     fi
 }

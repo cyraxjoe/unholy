@@ -1,8 +1,25 @@
 #!/bin/bash
 
-DOCKER_IMG_TAG="$name-build-env"
+# use the base directory name in the nix store as the
+# base of the build image name, alternatively we could
+# use the plain hash to have a single name (repo) with
+# a changing tag depending on the nix store hash
+DOCKER_IMG_NAME="${out##*/}-build-env"
 DOCKER_CONTEXT="docker-context"
 DOCKER_PRODUCT="docker-product"
+
+dockerWrapper(){
+    if [[ $useSudo ]]; then
+        if [[ $sudoUser ]]; then
+            sudo docker -u "$sudoUser" $*
+        else
+            sudo docker $*
+        fi
+    else
+        docker $*
+    fi
+}
+
 
 makeDockerBuild(){
     mkdir $DOCKER_CONTEXT
@@ -15,13 +32,13 @@ makeDockerBuild(){
     substituteInPlace $DOCKER_CONTEXT/Dockerfile \
                       --subst-var targetSystemBuildDependencies
     pushd $DOCKER_CONTEXT
-    docker build -t $DOCKER_IMG_TAG --build-arg STORE_PATH=$out .
+    dockerWrapper build -t $DOCKER_IMG_NAME --build-arg STORE_PATH=$out .
     popd
 }
 
 extractBuildFromDockerImage(){
     mkdir $DOCKER_PRODUCT
-    docker run "$DOCKER_IMG_TAG" tar  > build.tar
+    dockerWrapper run --rm "$DOCKER_IMG_NAME" tar  > build.tar
     tar --directory $DOCKER_PRODUCT --extract -f build.tar
     # we have to make writiable some of the directories
     # that are comming from the tar, because they were
@@ -46,6 +63,12 @@ extractBuildFromDockerImage(){
         rm -rf $DOCKER_PRODUCT/var/log/
     fi
     cp -a $DOCKER_PRODUCT/* $out/
+
+    if [[ -n "$keepBuildImage" ]]; then
+        echo "Keeping build image: '$DOCKER_IMG_NAME'"
+    else
+        dockerWrapper image rm "$DOCKER_IMG_NAME"
+    fi
 }
 
 

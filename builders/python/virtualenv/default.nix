@@ -12,8 +12,8 @@
 # define this parameter to create the venv on this path,
 # usefull to build the venv inside a docker container
 , storePath ? ""
-# try attribute is for small experiments... don't
-# relly a lot on it
+# this attribute is for small experiments...
+# don't relly a lot on it
 , extraDirectAttrs ? {}
 , ...} @ args:
 let
