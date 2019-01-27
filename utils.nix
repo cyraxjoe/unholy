@@ -1,10 +1,13 @@
 { }:
 {
-  # utility function to display a very explicit error message
-  bigErrorMsg = msg: ''
+  # local reimplementation of 'assertMsg'
+  bigErrorMsg = pred: msg:
+    if pred
+    then true
+    else builtins.trace ''
 
-    #########################################################
-    ${ msg }
-    #########################################################
-  '';
+      #########################################################
+      ${ msg }
+      #########################################################'' false;
+
 }
