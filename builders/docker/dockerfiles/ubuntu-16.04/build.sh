@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 buildArguments(){
     echo -n "--arg storePath \"$STORE_PATH\" "
     for arg_name in $UNHOLY_ARGUMENTS; do
@@ -19,5 +18,5 @@ fi
 # load the nix environment variables
 . .bash_profile
 
-set -eux
+set -eu
 nix-build $(buildArguments)  $UNHOLY_EXPRESSION -o $RESULT_LINK

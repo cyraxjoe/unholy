@@ -12,18 +12,19 @@ pipWrapper(){
 }
 
 installPythonPackage(){
-    set -x
     local pname=$1
     local src=$2
-    set +u
+    set +u # $3 might not be defined
     local requires_deps="$3"
     set -u
-    if [[ -d $src ]]; then
+    if [[ -d $src ]]; then # src is a diectory, copy it over and move into it
         cp -R --no-preserve mode $src ./$pname && pushd $pname
-    else
-        tar xvzf $src && pushd $pname
+    else # assume is a tar.gz, extract and get in
+        tar xzf $src && pushd $pname
     fi
     ORG_PATH="$PATH"
+    # modify the path, so that in case that is required it can find any system
+    # config utility required for native executabels
     PATH="/usr/bin:$PATH"
     if [[ -n $requires_deps ]]; then
         # remove any "-e" dependencies
@@ -37,25 +38,20 @@ installPythonPackage(){
     fi
     PATH=$ORG_PATH
     popd
-    set +x
 }
 
 installPythonDependencies(){
-    local pname=
-    local src=
     if [[ -n "$preLoadedPythonDeps" ]]; then
         ### install any directly provided dependencies
         echo $preLoadedPythonDeps | sed 's/ /\n/g' | {
-          read pname
-          read src
-          echo "Installing local dependency: $pname from $src"
-          installPythonPackage $pname $src
-          while read pname
-          do
-            read src
-            echo "Installing local dependency: $pname from $src"
-            installPythonPackage $pname $src
-          done
+            local pname
+            local src
+            while read pname
+            do
+              read src
+              echo "Installing local dependency: $pname from $src"
+              installPythonPackage $pname $src
+            done
         }
     fi
 }

@@ -55,7 +55,6 @@ configureBuildArgument(){
         esac
     fi
     echo "$arg_name" >> $CUSTOM_ARGS_NAMES_FILE
-    # append it to the global var
     printf '%s\n' "${commands[@]}"  >> $CUSTOM_ARGS_FILE
 }
 
