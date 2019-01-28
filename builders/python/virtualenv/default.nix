@@ -40,14 +40,12 @@ let
     namePrefix = args.namePrefix or null;
     allowedSystemCmds = [
       "/usr/bin/ldd"
-      "/usr/bin/lsb_release"
-      "/usr/bin/dpkg-query" # dependency of lsb_release
       "/usr/bin/gcc"
-      "/bin/uname"
     ];
     buildInputs = with pkgs; [
-      gnutar gzip which file findutils
-      coreutils gnugrep
+      coreutils lsb-release
+      gnutar gzip gnugrep
+      file findutils
     ];
     scriptPath = ./python-venv-builder.sh;
     directAttrs = ({

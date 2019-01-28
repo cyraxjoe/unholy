@@ -75,7 +75,7 @@ let
             unholyNullValue unholyEmptyStringValue
             unholyIntegerPrefix;
   };
-  # pretty sad implementation.. but does the trick
+  # pretty sad implementation.. but does the trick,
   # to provide special strings to determine
   # what was the original value
   getShellSafeValue = val:

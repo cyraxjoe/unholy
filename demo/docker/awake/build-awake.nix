@@ -8,6 +8,7 @@
 , zeroValue
 , integerValue
 , integerAsStringValue
+, virtualEnvSrc
 }:
 with (import unholySrc {}).builders;
 mkPythonVenvFromPypi {
@@ -17,5 +18,5 @@ mkPythonVenvFromPypi {
    systemPython = "/usr/bin/python2";
    exposedCmds = [ "awake" ];
    logExecution = true;
-   inherit storePath;
+   inherit storePath virtualEnvSrc;
 }

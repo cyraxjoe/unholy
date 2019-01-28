@@ -1,25 +1,13 @@
 #!/bin/bash
-set -e
-# use the base directory name in the nix store as the
-# base of the build image name, alternatively we could
-# use the plain hash to have a single name (repo) with
-# a changing tag depending on the nix store hash
-BUILD_ID="${out##*/}"
-DOCKER_IMG_NAME="$BUILD_ID-build-env"
-DOCKER_CONTEXT="docker-context"
-DOCKER_PRODUCT="docker-product"
-
-
-dockerWrapper(){
-    docker $*
-}
-
-ARGS_DIR="\$HOME/_arguments"
-CUSTOM_ARGS_NAMES_FILE="_arg_names"
-CUSTOM_ARGS_FILE="_args"
-
+#########################################################
+# Support functions
+#########################################################
 randomName(){
     cat /dev/urandom | tr -cd 'A-F0-9' | head -c 32 2>/dev/null
+}
+
+topDirNameInTar(){
+    tar -tjf $1 2>/dev/null | head -1 | cut -f1 -d"/"
 }
 
 configureBuildArgument(){
@@ -98,7 +86,7 @@ setupNixBinaryInstaller(){
         cp $nixInstaller nix-installer.tar.bz2
         # output stderr in to /dev/null because apparently tar can handle
         # list command with the pipe filtering of head+cut, it reports a "tar: write error"
-        local nix_dir_name=$(tar -tjf nix-installer.tar.bz2 2>/dev/null | head -1 | cut -f1 -d"/")
+        local nix_dir_name=$(topDirNameInTar nix-installer.tar.bz2)
         # extract and delete
         tar -xjf nix-installer.tar.bz2 && rm nix-installer.tar.bz2
         mv $nix_dir_name $DOCKER_CONTEXT/nix-binary-installer
@@ -185,5 +173,24 @@ extractBuildFromDockerImage(){
     fi
 }
 
+dockerWrapper(){
+    docker $*
+}
+#########################################################
+# End of support functions
+#########################################################
+set -e
+# use the base directory name in the nix store as the
+# base of the build image name, alternatively we could
+# use the plain hash to have a single name (repo) with
+# a changing tag depending on the nix store hash
+BUILD_ID="${out##*/}"
+DOCKER_IMG_NAME="$BUILD_ID-build-env"
+DOCKER_CONTEXT="docker-context"
+DOCKER_PRODUCT="docker-product"
+ARGS_DIR="\$HOME/_arguments"
+CUSTOM_ARGS_NAMES_FILE="_arg_names"
+CUSTOM_ARGS_FILE="_args"
 
-makeDockerBuild && extractBuildFromDockerImage
+makeDockerBuild &&
+    extractBuildFromDockerImage
