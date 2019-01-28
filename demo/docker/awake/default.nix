@@ -21,6 +21,8 @@ mkDockerBuild {
   targetSystem = "ubuntu-16.04";
   targetSystemBuildDependencies = [
      "python"
+     # required to determine the system
+     "lsb-release"
   ];
 
 }

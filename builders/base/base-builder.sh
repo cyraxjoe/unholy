@@ -63,9 +63,9 @@ loggedExecution(){
     exec 1>&>(ts $TS_FORMAT |
               sed -u 's;/nix/store/[a-zA-Z0-9]\{32,\};\<store-redacted\>;g' |
               tee -a $DETAILED_BUILD_LOG) 2>&1
-    set -v
+    set -v # set verbose option
     source $scriptPath
-    set +v
+    set +v # unset verbose option
     # 1. Remove the 'source' line, (line number 3)
     # 2. Remove the set +x line (last line)
     sync && sed -e '3d' -e '$d' -i $DETAILED_BUILD_LOG
@@ -78,11 +78,21 @@ loggedExecution(){
 plainExecution(){
     # make the base directory
     mkdir $out
-    set -v
+    set -v # set verbose option
     source $scriptPath
-    set +v
+    set +v # unset verbose option
 }
 
+
+if [[ -n "$debugBuild" ]]; then
+    echo "############################################"
+    echo "Enable debug"
+    echo "Environment variables"
+    echo "Path is: $PATH"
+    env
+    echo "############################################"
+    set -x
+fi
 if [[ -n "$logExecution" ]]; then
     loggedExecution
 else

@@ -1,14 +1,14 @@
 { unholySrc
-, storePath
+, storePath ? null
 # custom arguments
-, falseValue
-, trueValue
-, emptyStringValue
-, nullValue
-, zeroValue
-, integerValue
-, integerAsStringValue
-, virtualEnvSrc
+, falseValue ? false
+, trueValue ? true
+, emptyStringValue ? ""
+, nullValue  ? null
+, zeroValue ? 0
+, integerValue ? 1
+, integerAsStringValue ? "1000"
+, virtualEnvSrc ? null
 }:
 with (import unholySrc {}).builders;
 mkPythonVenvFromPypi {

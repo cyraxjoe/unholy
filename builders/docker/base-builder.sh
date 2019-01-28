@@ -166,6 +166,7 @@ extractBuildFromDockerImage(){
             echo "******************************************************"
             echo "Removing build image, but keeping untagged parents."
             echo "Make sure you prune the images later if you don't care about the cache."
+            echo "To prune the images execute: 'docker image prune'"
             echo "******************************************************"
             dockerWrapper image rm --no-prune "$DOCKER_IMG_NAME"
         fi
