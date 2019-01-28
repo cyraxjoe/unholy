@@ -5,6 +5,9 @@
 , trueValue
 , emptyStringValue
 , nullValue
+, zeroValue
+, integerValue
+, integerAsStringValue
 }:
 with (import unholySrc {}).builders;
 mkPythonVenvFromPypi {

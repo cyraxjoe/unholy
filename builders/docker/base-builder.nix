@@ -5,7 +5,7 @@
 , utils }:
 let
    inherit (builders) mkBuild;
-   inherit (builtins) elemAt toString attrNames any hasAttr;
+   inherit (builtins) elemAt toString attrNames any hasAttr isInt;
    inherit (lib) splitString optional lists mapAttrsToList;
    inherit (utils) bigErrorMsg;
 in
@@ -65,12 +65,18 @@ let
   #
   unholyEmptyStringValue = "_unholy_empty_string_value_";
   #
+  unholyIntegerPrefix = "_unholy_integer";
+  #
+  transformToUnholyInteger = val:
+    "${ unholyIntegerPrefix }:${ toString val }";
+  #
   specialUnholyValues = {
     inherit unholyTrueValue unholyFalseValue
-            unholyNullValue unholyEmptyStringValue;
+            unholyNullValue unholyEmptyStringValue
+            unholyIntegerPrefix;
   };
   # pretty sad implementation.. but does the trick
-  # to provide special strings to determinen
+  # to provide special strings to determine
   # what was the original value
   getShellSafeValue = val:
      if val == null
@@ -81,7 +87,9 @@ let
                  then unholyFalseValue
                  else (if val == true
                        then unholyTrueValue
-                       else val)));
+                       else (if (isInt val) == true
+                             then transformToUnholyInteger val
+                             else val))));
   buildArgs =
    lists.flatten (
        mapAttrsToList (name: value:  [ name (getShellSafeValue value) ])

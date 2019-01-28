@@ -8,9 +8,12 @@ mkDockerBuild {
      trueValue = true;
      nullValue = null;
      emptyStringValue = "";
+     zeroValue = 0;
+     integerValue = 1560;
+     integerAsStringValue = "1000";
   };
   pruneUntaggedParents = false;
-  dockerExec = "/run/current-system/sw/bin/docker";
+  dockerExec = "/usr/bin/docker";
   targetSystem = "ubuntu-16.04";
   targetSystemBuildDependencies = [
      "python"

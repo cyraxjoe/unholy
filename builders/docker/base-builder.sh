@@ -25,6 +25,7 @@ randomName(){
 configureBuildArgument(){
     local arg_name=$1
     local arg_value="$2"
+    local unholyIntegerRegex="^${unholyIntegerPrefix}:[0-9]+$"
     declare -a commands
     echo "Configuring build argument '$arg_name'"
     if [[ -e $arg_value ]]; then
@@ -41,8 +42,10 @@ configureBuildArgument(){
         # forge the dockerfile commands
         commands=("${commands[@]}" "COPY \"$rand_name\" \"$arg_path_dest\"")
         commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name \"$arg_path_dest\"")
-    elif [[ $arg_value =~ "^[0-9]+$" ]]; then # is an integer
-        commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name $arg_value")
+    elif [[ $arg_value =~ $unholyIntegerRegex ]]; then # is an integer
+        # extract the actual integer that was passed
+        local integer_value="${arg_value##*:}"
+        commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name $integer_value")
     else
         case "$arg_value" in
             "$unholyTrueValue")
