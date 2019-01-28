@@ -9,6 +9,7 @@ DOCKER_IMG_NAME="$BUILD_ID-build-env"
 DOCKER_CONTEXT="docker-context"
 DOCKER_PRODUCT="docker-product"
 
+
 dockerWrapper(){
     docker $*
 }
@@ -70,15 +71,18 @@ setupCustomArguments(){
 
 setupNixBinaryInstaller(){
     if [[ $nixInstallerComp == ".tar.bz2" ]]; then
-	cp $nixInstaller nix-installer.tar.bz2
-	local nix_dir_name=$(tar -tjf nix-installer.tar.bz2 | head -1 | cut -f1 -d"/")
-	tar -xjf nix-installer.tar.bz2
-	mv $nix_dir_name $DOCKER_CONTEXT/nix-binary-installer
+        cp $nixInstaller nix-installer.tar.bz2
+        # output stderr in to /dev/null because apparently tar can handle
+        # list command with the pipe filtering of head+cut, it reports a "tar: write error"
+        local nix_dir_name=$(tar -tjf nix-installer.tar.bz2 2>/dev/null | head -1 | cut -f1 -d"/")
+        # extract and delete
+        tar -xjf nix-installer.tar.bz2 && rm nix-installer.tar.bz2
+        mv $nix_dir_name $DOCKER_CONTEXT/nix-binary-installer
     elif [[ -z $nixInstallerComp ]]; then # assume is a directory
-	cp -R $nixInstaller $DOCKER_CONTEXT/nix-binary-installer
+        cp -R $nixInstaller $DOCKER_CONTEXT/nix-binary-installer
     else
-	echo "Unable to determine how to obtain the nix binary installer" > /dev/stderr
-	exit 1
+        echo "Unable to determine how to obtain the nix binary installer" >&2
+        exit 1
     fi
 }
 
@@ -100,7 +104,7 @@ makeDockerBuild(){
     substituteInPlace $DOCKER_CONTEXT/Dockerfile \
                       --subst-var out \
                       --subst-var targetSystemBuildDependencies \
-		      --subst-var CUSTOM_ARGS \
+                      --subst-var CUSTOM_ARGS \
                       --subst-var ARGS_DIR
     echo "Final dockerfile"
     echo "============================"
@@ -112,6 +116,7 @@ makeDockerBuild(){
 }
 
 extractBuildFromDockerImage(){
+    echo "Extracting build"
     mkdir $DOCKER_PRODUCT
     dockerWrapper run --rm "$DOCKER_IMG_NAME" tar  > build.tar
     tar --directory $DOCKER_PRODUCT --extract -f build.tar
@@ -140,9 +145,19 @@ extractBuildFromDockerImage(){
     cp -a $DOCKER_PRODUCT/* $out/
 
     if [[ -n "$keepBuildImage" ]]; then
-        echo "Keeping build image: '$DOCKER_IMG_NAME'"
+        echo "******************************************************"
+        echo "Keeping build image: '$DOCKER_IMG_NAME'."
+        echo "******************************************************"
     else
-        dockerWrapper image rm "$DOCKER_IMG_NAME"
+        if [[ -n "$pruneUntaggedParents" ]]; then
+            dockerWrapper image rm "$DOCKER_IMG_NAME"
+        else
+            echo "******************************************************"
+            echo "Removing build image, but keeping untagged parents."
+            echo "Make sure you prune the images later if you don't care about the cache."
+            echo "******************************************************"
+            dockerWrapper image rm --no-prune "$DOCKER_IMG_NAME"
+        fi
     fi
 }
 

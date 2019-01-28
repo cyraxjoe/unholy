@@ -1,5 +1,7 @@
-{ unholy ? ./., storePath ? "" }:
-with (import unholy {}).builders;
+{ unholySrc
+, storePath
+}:
+with (import unholySrc {}).builders;
 mkPythonVenvFromPypi {
    name = "awake";
    version = "1.0";

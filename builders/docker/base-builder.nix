@@ -26,8 +26,12 @@ in
 # this directory into the docker container
 , unholySrc ? ../../.
 , keepBuildImage ? false
+# the default behaviour in docker is to prune
+# all the untagger parent layers
+, pruneUntaggedParents ? true
 , nixBinaryInstaller ? null
 , nixBinaryInstallerComp ? null
+, dockerExec ? "/usr/bin/docker"
 }:
 
 #######################
@@ -49,12 +53,15 @@ let
   # TODO: use these two to determine if we can share files
   # to avoid duplication in the dockerfiles
   osName = elemAt (splitString "-" targetSystem) 0;
+
   osVersion = elemAt (splitString "-" targetSystem) 1;
+
   buildArgs =
    lists.flatten (
        mapAttrsToList (name: value:  [ name value ])
           (unholyExpressionArgs // { inherit unholySrc; })
   );
+
   defaultNixInstaller = fetchurl {
     url = https://nixos.org/releases/nix/nix-2.2.1/nix-2.2.1-x86_64-linux.tar.bz2;
     sha256 = "1q3rr8g8fi92xlvw504j4fnlxsr4gaq0g44c4x66ib8c4n7y4ag2";
@@ -65,29 +72,29 @@ let
      defaultNixInstaller
     else nixBinaryInstaller
   );
+
   nixInstallerComp = (
     if nixBinaryInstallerComp == null then
      ".tar.bz2"
     else nixBinaryInstallerComp
   );
-
 in
   mkBuild {
     inherit name;
     scriptPath = ./base-builder.sh;
     buildInputs = with pkgs; [ gnutar gnugrep bzip2 ];
     allowedSystemCmds = [
-      "/usr/bin/docker"
+      dockerExec
     ];
     directAttrs = {
       inherit
-         unholyExpression buildArgs keepBuildImage
-	 nixInstaller nixInstallerComp
+         unholyExpression buildArgs
+         keepBuildImage pruneUntaggedParents
+         nixInstaller nixInstallerComp
          targetSystemBuildDependencies
          targetSystemRunDependencies;
       dockerFile = ./dockerfiles + "/${ targetSystem }/Dockerfile";
       entryPoint = ./dockerfiles + "/${ targetSystem }/entrypoint.sh";
       buildScript = ./dockerfiles + "/${ targetSystem }/build.sh";
-      replaceCustomArgsScript = ./replace_custom_args.py;
     };
   }

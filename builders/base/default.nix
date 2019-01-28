@@ -41,7 +41,7 @@ let
              for cmd in $allowedSystemCmds; do
                  full_cmd=$(readlink -e $cmd)
                  if (( $? != 0 )); then
-                     echo "The command '$cmd' is not present in the system. Ignoring" > /dev/stderr
+                     echo "The command '$cmd' is not present in the system. Ignoring" >&2
                  else
                      base_name=$(basename $cmd)
                      ln -s $full_cmd $_TEMP_PATH/$base_name
