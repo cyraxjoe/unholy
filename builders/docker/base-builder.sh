@@ -18,17 +18,28 @@ ARGS_DIR="\$HOME/_arguments"
 CUSTOM_ARGS_NAMES_FILE="_arg_names"
 CUSTOM_ARGS_FILE="_args"
 
+randomName(){
+    cat /dev/urandom | tr -cd 'A-F0-9' | head -c 32 2>/dev/null
+}
+
 configureBuildArgument(){
     local arg_name=$1
     local arg_value="$2"
     declare -a commands
     echo "Configuring build argument '$arg_name'"
-    if [[ -x $arg_value ]]; then
+    if [[ -e $arg_value ]]; then
         # if it exists in the filesystem we assume is a file
-        local arg_path_dest="$ARGS_DIR/$(basename $arg_value)"
-        cp -r $arg_value $DOCKER_CONTEXT
+        # use  a random filename to avoid adding a dependency detected because
+        # we are using the same hash.
+        # TODO: add the file extension in case we encounter an issue with this method
+        local rand_name=$(randomName)
+        # move from the origin into the docker context
+        cp -r $arg_value $DOCKER_CONTEXT/
+        # rename  into a safe random name to avoid dependencies
+        mv $DOCKER_CONTEXT/$(basename $arg_value) "$DOCKER_CONTEXT/$rand_name"
+        local arg_path_dest="$ARGS_DIR/$rand_name"
         # forge the dockerfile commands
-        commands=("${commands[@]}" "COPY \"$(basename $arg_value)\" \"$arg_path_dest\"")
+        commands=("${commands[@]}" "COPY \"$rand_name\" \"$arg_path_dest\"")
         commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name \"$arg_path_dest\"")
     elif [[ $arg_value =~ "^[0-9]+$" ]]; then # is an integer
         commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name $arg_value")

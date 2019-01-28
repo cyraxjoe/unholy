@@ -1,4 +1,11 @@
 { pkgs , fetchurl, lib , builders }:
+let
+   inherit (builtins) removeAttrs;
+   inherit (lib) lists;
+   inherit (lib.attrsets) attrNames;
+   ##############################
+   inherit (builders) mkBuild;
+in
 { mainPackageName
 , src
 , installDepsFromRequires ? ""
@@ -10,19 +17,13 @@
 , namePrefix ? null
 , logExecution ? false
 # define this parameter to create the venv on this path,
-# usefull to build the venv inside a docker container
+# useful to build the venv inside a docker container
 , storePath ? ""
 # this attribute is for small experiments...
-# don't relly a lot on it
+# don't rely a lot on it
 , extraDirectAttrs ? {}
 , ...} @ args:
 let
-   inherit (builtins) removeAttrs;
-   inherit (lib) lists;
-   inherit (lib.attrsets) attrNames;
-   ##############################
-   inherit (builders) mkBuild;
-
   defaultVirtualEnvSrc = fetchurl {
      url = "https://pypi.io/packages/source/v/virtualenv/virtualenv-16.2.0.tar.gz";
      sha256 = "1ka0rlwhcsqkv995jr1xfglhj9d94avbwippxszx52xilwqnhwzs";
@@ -56,7 +57,6 @@ let
               installDepsFromRequires storePath;
     } // extraDirectAttrs) ;
   };
-
   mkBuildArgs = removeAttrs args ((attrNames coreAttributes.directAttrs) ++ [ "extraDirectAttrs"]);
 in
    mkBuild (coreAttributes // mkBuildArgs)
