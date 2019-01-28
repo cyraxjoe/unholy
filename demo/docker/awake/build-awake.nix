@@ -1,5 +1,10 @@
 { unholySrc
 , storePath
+# custom arguments
+, falseValue
+, trueValue
+, emptyStringValue
+, nullValue
 }:
 with (import unholySrc {}).builders;
 mkPythonVenvFromPypi {

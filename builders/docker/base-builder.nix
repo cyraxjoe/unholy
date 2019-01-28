@@ -9,8 +9,7 @@ let
    inherit (lib) splitString optional lists mapAttrsToList;
    inherit (utils) bigErrorMsg;
 in
-{
-  name
+{ name
 , unholyExpression
 , unholyExpressionArgs ? {}
 , targetSystem ? "ubuntu-16.04"
@@ -56,9 +55,36 @@ let
 
   osVersion = elemAt (splitString "-" targetSystem) 1;
 
+  # special values to be able to replicate the arguments inside the
+  # docker nix-build call
+  unholyTrueValue = "_unholy_true_value_";
+
+  unholyFalseValue = "_unholy_false_value_";
+  #
+  unholyNullValue = "_unholy_null_value_";
+  #
+  unholyEmptyStringValue = "_unholy_empty_string_value_";
+  #
+  specialUnholyValues = {
+    inherit unholyTrueValue unholyFalseValue
+            unholyNullValue unholyEmptyStringValue;
+  };
+  # pretty sad implementation.. but does the trick
+  # to provide special strings to determinen
+  # what was the original value
+  getShellSafeValue = val:
+     if val == null
+     then unholyNullValue
+     else (if val == ""
+           then unholyEmptyStringValue
+           else (if val == false
+                 then unholyFalseValue
+                 else (if val == true
+                       then unholyTrueValue
+                       else val)));
   buildArgs =
    lists.flatten (
-       mapAttrsToList (name: value:  [ name value ])
+       mapAttrsToList (name: value:  [ name (getShellSafeValue value) ])
           (unholyExpressionArgs // { inherit unholySrc; })
   );
 
@@ -96,5 +122,5 @@ in
       dockerFile = ./dockerfiles + "/${ targetSystem }/Dockerfile";
       entryPoint = ./dockerfiles + "/${ targetSystem }/entrypoint.sh";
       buildScript = ./dockerfiles + "/${ targetSystem }/build.sh";
-    };
+    } // specialUnholyValues;
   }

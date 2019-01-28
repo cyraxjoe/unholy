@@ -24,23 +24,33 @@ configureBuildArgument(){
     declare -a commands
     echo "Configuring build argument '$arg_name'"
     if [[ -x $arg_value ]]; then
-	# if it exists in the filesystem we assume is a file
-	local arg_path_dest="$ARGS_DIR/$(basename $arg_value)"
-	cp -r $arg_value $DOCKER_CONTEXT
-	# forge the dockerfile commands
-	commands=("${commands[@]}" "COPY \"$(basename $arg_value)\" \"$arg_path_dest\"")
-	commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name \"$arg_path_dest\"")
+        # if it exists in the filesystem we assume is a file
+        local arg_path_dest="$ARGS_DIR/$(basename $arg_value)"
+        cp -r $arg_value $DOCKER_CONTEXT
+        # forge the dockerfile commands
+        commands=("${commands[@]}" "COPY \"$(basename $arg_value)\" \"$arg_path_dest\"")
+        commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name \"$arg_path_dest\"")
+    elif [[ $arg_value =~ "^[0-9]+$" ]]; then # is an integer
+        commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name $arg_value")
     else
-	if [[ $arg_value == "1" ]]; then # we asume the intention was "true"
-	    commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name true")
-	elif [[ -z $arg_value ]]; then
-	    commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name false")
-	elif [[ $arg_value =~ "^[0-9]+$" ]]; then # is an integer
-	    commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name $arg_value")
-	else # assume the original value was a string
-	    commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name '\"$arg_value\"'")
-	fi
-
+        case "$arg_value" in
+            "$unholyTrueValue")
+                commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name true")
+            ;;
+            "$unholyFalseValue")
+                commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name false")
+            ;;
+            "$unholyNullValue")
+                commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name null")
+            ;;
+            "$unholyEmptyStringValue")
+                commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name '\"\"'")
+            ;;
+            *) # assume that anything else is a string
+               # (not a file, integer, null, false, true, empty string)
+                commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name '\"$arg_value\"'")
+            ;;
+        esac
     fi
     echo "$arg_name" >> $CUSTOM_ARGS_NAMES_FILE
     # append it to the global var
@@ -56,13 +66,13 @@ setupCustomArguments(){
     # processing is done indirectly by appending to
     # CUSTOM_ARGS_NAMES_FILE and CUSTOM_ARGS_FILE
     echo $buildArgs | sed 's/ /\n/g' | {
-	local arg_name
-	local arg_value
-	while read arg_name
-	do
-	    read arg_value
-	    configureBuildArgument $arg_name "$arg_value"
-	done
+        local arg_name
+        local arg_value
+        while read arg_name
+        do
+            read arg_value
+            configureBuildArgument $arg_name "$arg_value"
+        done
     }
     local names=$(cat $CUSTOM_ARGS_NAMES_FILE | tr "\n" " " | head -c -1)
     echo "ENV UNHOLY_ARGUMENTS \"$names\"" >>  $CUSTOM_ARGS_FILE
