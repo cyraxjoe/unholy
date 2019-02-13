@@ -1,5 +1,7 @@
-{ unholy ? ./., storePath ? "" }:
-with (import unholy {}).builders;
+{ unholySrc ? ./.
+, storePath ? ""
+, virtualEnvSrc }:
+with (import unholySrc {}).builders;
 mkPythonVenvFromPypi {
    name = "psycopg2";
    version = "2.7.7";

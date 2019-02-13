@@ -24,6 +24,17 @@ in
 # refer to the root of the unholy lib, we are going to copy over
 # this directory into the docker container
 , unholySrc ? ../../.
+# this will cause to run docker build with "--force-rm" to ensure
+# that a potential failure in the build does not left a container
+# as a side-effect on the system.
+# If is set to "false" and potentially accumulate some stopped
+# containers in the system you can remove those with "docker rm"
+, alwaysRemoveBuildContainers ? true
+# if set to false, use --no-cache in the docker build process,
+# this will prevent storing any intermediate image as part of the build
+# process
+, noBuildCache ? false
+# keep the resulting build image in case of success
 , keepBuildImage ? false
 # the default behaviour in docker is to prune
 # all the untagger parent layers
@@ -31,6 +42,7 @@ in
 , nixBinaryInstaller ? null
 , nixBinaryInstallerComp ? null
 , dockerExec ? "/usr/bin/docker"
+, logExecution ? false
 }:
 
 #######################
@@ -114,7 +126,7 @@ let
   );
 in
   mkBuild {
-    inherit name;
+    inherit name logExecution;
     scriptPath = ./base-builder.sh;
     buildInputs = with pkgs; [ gnutar gnugrep bzip2 ];
     allowedSystemCmds = [
@@ -123,6 +135,7 @@ in
     directAttrs = {
       inherit
          unholyExpression buildArgs
+         alwaysRemoveBuildContainers noBuildCache
          keepBuildImage pruneUntaggedParents
          nixInstaller nixInstallerComp
          targetSystemBuildDependencies

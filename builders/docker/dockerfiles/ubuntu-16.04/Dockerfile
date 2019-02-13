@@ -29,6 +29,11 @@ WORKDIR $HOME
 USER root
 # remove the nix installer folder as root
 RUN rm -rf $HOME/nix-binary-installer
+
+# install lsb-release so that the virtualenvs can obtain the system
+# information and ca-certificate in case we try to fetch something
+# from the network and is using https (like pip)
+RUN apt-get update && apt-get install -y lsb-release ca-certificates
 # we use a direct string replacement (the @ placeholder)
 # because otherwise docker has issues caching the layer even if we define
 # the same dependencies on a file and then use it to install those

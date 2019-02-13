@@ -17,6 +17,8 @@ let
 in
 mkPythonVirtualEnv ({
    name = mainPackageName;
-   src = fetchPypi { inherit pname version sha256; };
+   mainPackageSrc = fetchPypi {
+     inherit pname version sha256;
+   };
    inherit mainPackageName;
 } // extraArgs)

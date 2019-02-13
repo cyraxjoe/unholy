@@ -1,14 +1,24 @@
 { unholySrc
 , storePath
-, cherryPySrc
 , virtualEnvSrc
+, requires
+, findLinks
+, buildRequires
+, buildFindLinks
 }:
 with (import unholySrc {}).builders;
 mkPythonVirtualEnv {
-   mainPackageName = "cherrypy";
-   src = cherryPySrc;
-   systemPython = "/usr/bin/python3";
-   exposedCmds = [ "cherryd" ];
-   logExecution = true;
-   inherit storePath virtualEnvSrc;
+  name = "CherryPy";
+  systemPython = "/usr/bin/python3";
+  exposedCmds = [ "cherryd" ];
+  logExecution = false;
+  requires = {
+    files = [ requires ];
+    findLinks = [ findLinks ];
+  };
+  buildRequires = {
+    files = [ buildRequires ];
+    findLinks = [ buildFindLinks ];
+  };
+  inherit storePath virtualEnvSrc;
 }

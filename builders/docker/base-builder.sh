@@ -2,8 +2,21 @@
 #########################################################
 # Support functions
 #########################################################
-randomName(){
-    cat /dev/urandom | tr -cd 'A-F0-9' | head -c 32 2>/dev/null
+getBuildId(){
+    local outEnv=$(basename $out)
+    # use the first 20 chars from the outpath hash
+    echo "${outEnv:0:20}"
+}
+
+safeFileNameFromStorePath(){
+    local filename=$(basename $1)
+    # remove the first 23 characters of the filename,
+    # instead of removing all the hash part (32 + 1 ["-"])
+    # we keep some to optimistically trying to avoid
+    # name colission in the files and remove the trace
+    # of the original nix dependency by not having the full hash,
+    # keep 10 chars from the hash plus -
+    echo "${filename:23}"
 }
 
 topDirNameInTar(){
@@ -18,17 +31,14 @@ configureBuildArgument(){
     echo "Configuring build argument '$arg_name'"
     if [[ -e $arg_value ]]; then
         # if it exists in the filesystem we assume is a file
-        # use  a random filename to avoid adding a dependency detected because
-        # we are using the same hash.
-        # TODO: add the file extension in case we encounter an issue with this method
-        local rand_name=$(randomName)
+         local safe_name=$(safeFileNameFromStorePath $arg_value)
         # move from the origin into the docker context
         cp -r $arg_value $DOCKER_CONTEXT/
-        # rename  into a safe random name to avoid dependencies
-        mv $DOCKER_CONTEXT/$(basename $arg_value) "$DOCKER_CONTEXT/$rand_name"
-        local arg_path_dest="$ARGS_DIR/$rand_name"
+        # rename
+        mv $DOCKER_CONTEXT/$(basename $arg_value) "$DOCKER_CONTEXT/$safe_name"
+        local arg_path_dest="$ARGS_DIR/$safe_name"
         # forge the dockerfile commands
-        commands=("${commands[@]}" "COPY \"$rand_name\" \"$arg_path_dest\"")
+        commands=("${commands[@]}" "COPY \"$safe_name\" \"$arg_path_dest\"")
         commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name \"$arg_path_dest\"")
     elif [[ $arg_value =~ $unholyIntegerRegex ]]; then # is an integer
         # extract the actual integer that was passed
@@ -100,7 +110,6 @@ setupNixBinaryInstaller(){
 
 makeDockerBuild(){
     mkdir $DOCKER_CONTEXT
-    #cp -r $unholySrc $DOCKER_CONTEXT/unholy
     cp $dockerFile $DOCKER_CONTEXT/Dockerfile
     # this can be a single file or a directory with default.nix
     cp -r $unholyExpression $DOCKER_CONTEXT/unholy-expression
@@ -117,13 +126,23 @@ makeDockerBuild(){
                       --subst-var targetSystemBuildDependencies \
                       --subst-var CUSTOM_ARGS \
                       --subst-var ARGS_DIR
-    echo "Final dockerfile"
-    echo "============================"
-    cat $DOCKER_CONTEXT/Dockerfile
-    echo "============================"
+    #echo "Final dockerfile"
+    #echo "============================"
+    #cat $DOCKER_CONTEXT/Dockerfile
+    #echo "============================"
     pushd $DOCKER_CONTEXT
-    dockerWrapper build -t $DOCKER_IMG_NAME .
-    popd
+    local buildFlags="--tag $DOCKER_IMG_NAME"
+    if [[ -n $alwaysRemoveBuildContainers ]]; then
+        # remove all the intermediate containers, even if the build fails
+        buildFlags+=" --force-rm"
+    fi
+    if [[ -n $noBuildCache ]]; then
+        buildFlags+=" --no-cache"
+    fi
+    echo "executing docker build with the flags '$buildFlags'"
+    dockerWrapper build $buildFlags .
+    # we don't care about the dir, output to null
+    popd > /dev/null
 }
 
 extractBuildFromDockerImage(){
@@ -131,12 +150,15 @@ extractBuildFromDockerImage(){
     mkdir $DOCKER_PRODUCT
     dockerWrapper run --rm "$DOCKER_IMG_NAME" tar  > build.tar
     tar --directory $DOCKER_PRODUCT --extract -f build.tar
-    # we have to make writiable some of the directories
-    # that are comming from the tar, because they were
+    # we have to make writable some of the directories
+    # that are coming from the tar, because they were
     # extracted from a nix store (with read-only on
     # pretty much everything)
     chmod +w $DOCKER_PRODUCT
     if [[ -e $DOCKER_PRODUCT/nix-support ]]; then
+        # the nix-support directory might not exists if we are not
+        # logging this execution
+        ensureNixSupportDir
         chmod +w $DOCKER_PRODUCT/nix-support/
         mv $DOCKER_PRODUCT/nix-support $out/nix-support/in-docker
         local hydra_products_in_docker=$out/nix-support/in-docker/hydra-build-products
@@ -152,6 +174,11 @@ extractBuildFromDockerImage(){
         chmod +w $DOCKER_PRODUCT/var $DOCKER_PRODUCT/var/log
         mv $DOCKER_PRODUCT/var/log/* $out/var/log/in-docker/
         rm -rf $DOCKER_PRODUCT/var/log/
+        # add the docker logs as hydra proucts
+        local log
+        for log in $out/var/log/in-docker/*; do
+            addHydraBuildProduct file log "$log"
+        done
     fi
     cp -a $DOCKER_PRODUCT/* $out/
 
@@ -184,7 +211,7 @@ set -e
 # base of the build image name, alternatively we could
 # use the plain hash to have a single name (repo) with
 # a changing tag depending on the nix store hash
-BUILD_ID="${out##*/}"
+BUILD_ID=$(getBuildId)
 DOCKER_IMG_NAME="$BUILD_ID-build-env"
 DOCKER_CONTEXT="docker-context"
 DOCKER_PRODUCT="docker-product"
