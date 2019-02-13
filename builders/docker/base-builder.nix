@@ -44,6 +44,7 @@ in
 , dockerExec ? "/usr/bin/docker"
 , logExecution ? false
 , namePrefix ? null
+, outputs ? [ "out" ]
 , meta ? {}
 }:
 
@@ -128,7 +129,7 @@ let
   );
 in
   mkBuild {
-    inherit name logExecution meta namePrefix;
+    inherit name logExecution meta namePrefix outputs;
     scriptPath = ./base-builder.sh;
     buildInputs = with pkgs; [ gnutar gnugrep bzip2 ];
     allowedSystemCmds = [

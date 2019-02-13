@@ -16,7 +16,13 @@ case "${params[0]}" in
         ## currently this is the only command on which we are relying on
         ## the build process, the others are niceties and some were used for
         ## experiments
-        (cd $RESULT_LINK; tar  --create .)
+        output="${params[1]}"
+        if [[ -n "$output" ]] && [[ $output != "out" ]]; then
+            cd "${RESULT_LINK}-${output}"
+        else
+            cd $RESULT_LINK
+        fi
+        tar  --create .
     ;;
     path)
         readlink -e $RESULT_LINK

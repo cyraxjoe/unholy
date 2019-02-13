@@ -9,4 +9,4 @@ let
    exposedCmds = [ "awake" ];
   };
 in
- awake.wheels
+ awake

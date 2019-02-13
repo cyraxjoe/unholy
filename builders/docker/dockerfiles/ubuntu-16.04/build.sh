@@ -19,4 +19,5 @@ fi
 . .bash_profile
 
 set -eu
-nix-build $(buildArguments)  $UNHOLY_EXPRESSION -o $RESULT_LINK
+nix-build $(buildArguments)  $UNHOLY_EXPRESSION -A all  -o $RESULT_LINK
+ls -l $OUTPUT_DIR

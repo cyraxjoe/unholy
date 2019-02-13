@@ -56,6 +56,7 @@ ENV STORE_PATH @out@
 ENV OUTPUT_DIR $HOME/output
 ENV RESULT_LINK $OUTPUT_DIR/result
 ENV UNHOLY_EXPRESSION $HOME/unholy-expression
+ENV OUTPUTS "@outputs@"
 ###
 RUN /bin/bash ./build.sh
 CMD [ "" ]

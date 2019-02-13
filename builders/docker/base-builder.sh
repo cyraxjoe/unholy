@@ -123,6 +123,7 @@ makeDockerBuild(){
     CUSTOM_ARGS="$(cat $CUSTOM_ARGS_FILE | head -c -1)"
     substituteInPlace $DOCKER_CONTEXT/Dockerfile \
                       --subst-var out \
+                      --subst-var outputs \
                       --subst-var targetSystemBuildDependencies \
                       --subst-var CUSTOM_ARGS \
                       --subst-var ARGS_DIR
@@ -145,42 +146,62 @@ makeDockerBuild(){
     popd > /dev/null
 }
 
-extractBuildFromDockerImage(){
-    echo "Extracting build"
-    mkdir $DOCKER_PRODUCT
-    dockerWrapper run --rm "$DOCKER_IMG_NAME" tar  > build.tar
-    tar --directory $DOCKER_PRODUCT --extract -f build.tar
+extractOutput(){
+    local dir="$1"
+    local output="$2"
+    local intermediateTar="build-${output}.tar"
+    mkdir $dir
+    # we could avoid the creation of the tar itself.. but it was usefull
+    # to debug, consider piping the output directly to tar if we care
+    # about the storage
+    dockerWrapper run --rm "$DOCKER_IMG_NAME" tar $output  > $intermediateTar
+    tar --directory $dir --extract -f $intermediateTar
+}
+
+importProducts(){
+    local dir="$1"
+    local output="$2"
+    local hydra_products_in_docker log
     # we have to make writable some of the directories
     # that are coming from the tar, because they were
     # extracted from a nix store (with read-only on
     # pretty much everything)
-    chmod +w $DOCKER_PRODUCT
-    if [[ -e $DOCKER_PRODUCT/nix-support ]]; then
+    chmod +w $dir
+    if [[ -e $dir/nix-support ]]; then
         # the nix-support directory might not exists if we are not
         # logging this execution
-        ensureNixSupportDir
-        chmod +w $DOCKER_PRODUCT/nix-support/
-        mv $DOCKER_PRODUCT/nix-support $out/nix-support/in-docker
-        local hydra_products_in_docker=$out/nix-support/in-docker/hydra-build-products
+        ensureNixSupportDir "${!output}"
+        chmod +w $dir/nix-support/
+        mv $dir/nix-support "${!output}/nix-support/in-docker"
+        hydra_products_in_docker="${!output}/nix-support/in-docker/hydra-build-products"
         if [[ -e $hydra_products_in_docker ]]; then
             # copy over the products from the docker build
-            # that were built in our 'out' path
-            grep "$out" $hydra_products_in_docker >> $HYDRA_BUILD_PRODUCTS_FILE
+            # that were built in our 'output' path
+            grep "${!output}" $hydra_products_in_docker >> $HYDRA_BUILD_PRODUCTS_FILE
         fi
     fi
     # if we have an internal log, copy it
-    if [[ -e $DOCKER_PRODUCT/var/log ]]; then
-        mkdir -p $out/var/log/in-docker
-        chmod +w $DOCKER_PRODUCT/var $DOCKER_PRODUCT/var/log
-        mv $DOCKER_PRODUCT/var/log/* $out/var/log/in-docker/
-        rm -rf $DOCKER_PRODUCT/var/log/
+    if [[ -e $dir/var/log ]]; then
+        mkdir -p "${!output}/var/log/in-docker"
+        chmod +w $dir/var $dir/var/log
+        mv $dir/var/log/* "${!output}/var/log/in-docker/"
+        rm -rf $dir/var/log/
         # add the docker logs as hydra proucts
-        local log
-        for log in $out/var/log/in-docker/*; do
+        for log in "${!output}/var/log/in-docker/*"; do
             addHydraBuildProduct file log "$log"
         done
     fi
-    cp -a $DOCKER_PRODUCT/* $out/
+    cp -a $dir/* "${!output}/"
+}
+
+extractBuildFromDockerImage(){
+    echo "Extracting build"
+    local docker_product_dir output
+    for output in $outputs; do
+        docker_product_dir="docker-product-${output}"
+        extractOutput "$docker_product_dir" "$output"
+        importProducts "$docker_product_dir" "$output"
+    done
 
     if [[ -n "$keepBuildImage" ]]; then
         echo "******************************************************"
@@ -214,7 +235,6 @@ set -e
 BUILD_ID=$(getBuildId)
 DOCKER_IMG_NAME="$BUILD_ID-build-env"
 DOCKER_CONTEXT="docker-context"
-DOCKER_PRODUCT="docker-product"
 ARGS_DIR="\$HOME/_arguments"
 CUSTOM_ARGS_NAMES_FILE="_arg_names"
 CUSTOM_ARGS_FILE="_args"

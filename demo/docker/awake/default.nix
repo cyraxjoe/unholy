@@ -27,5 +27,5 @@ mkDockerBuild {
   targetSystemBuildDependencies = [
      "python"
   ];
-
+  outputs = [ "out" "wheels" ];
 }
