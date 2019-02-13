@@ -75,6 +75,8 @@ in
 , extraDirectAttrs ? {}
 # extra verbose ouput on the execution of the build
 , debugBuild ? false
+# meta attributes, similar to the ones used in nixpkgs
+, meta ? {}
 }:
 let
   makeFindLinkDirs = requiresFiles:
@@ -122,7 +124,7 @@ let
   } // extraDirectAttrs;
 in
 mkBuild {
-  inherit name namePrefix logExecution directAttrs debugBuild;
+  inherit name namePrefix logExecution directAttrs debugBuild meta;
   allowedSystemCmds = [
     # the lsb_release from nix doesn't detect the "Distribution ID"
     # and it doesn't work with the linux distribution detection in pip
