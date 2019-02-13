@@ -219,5 +219,8 @@ ARGS_DIR="\$HOME/_arguments"
 CUSTOM_ARGS_NAMES_FILE="_arg_names"
 CUSTOM_ARGS_FILE="_args"
 
-makeDockerBuild &&
-    extractBuildFromDockerImage
+# we don't need the conditional &&, we're already at the mercy of errexit,
+# if we were to use "&&", it would have the effect that it would ignore the errexit
+# behavior inside the function (not failing on the first error)
+makeDockerBuild
+extractBuildFromDockerImage

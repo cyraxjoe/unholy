@@ -12,13 +12,13 @@ let
   mainPackageName = "${ name }-${ version}";
   pname = name; # expected attribute name for fetchPypi
   extraArgs =  removeAttrs args [
-    "name"  "version" "sha256" "src"
+    "name"  "version" "sha256"
   ];
 in
 mkPythonVirtualEnv ({
    name = mainPackageName;
+   inherit mainPackageName;
    mainPackageSrc = fetchPypi {
      inherit pname version sha256;
    };
-   inherit mainPackageName;
 } // extraArgs)
