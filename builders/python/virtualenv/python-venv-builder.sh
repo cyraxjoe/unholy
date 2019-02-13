@@ -336,13 +336,9 @@ obtainSystemInfo > "$VENV_SYSTEM_INFO_FILE"
 obtainNativeExecutables > "$EXECUTABLES_IN_VENV_FILE"
 obtainRequiremens > "$VENV_REQUIREMENTS_FILE"
 obtainPythonVersion > "$PYTHON_VERSION_FILE"
-# copy over the wheels into the output virtualenv
-# TODO: consider in the future if this is usefull
-# and maybe split this derivation or base it in
-# stdenv and the multiple outputs packages
-if [[ -n $includeWheelsInOutput ]]; then
-    cp -r $WHEELS_DIR $VENV_OUT_DIR/
-fi
+# copy over the wheels into the wheels output
+cp -r $WHEELS_DIR/* $wheels
+
 if isExternalBuild; then
     # extract the virtualenv from the $storePath
     # and remove the path from the nix store,

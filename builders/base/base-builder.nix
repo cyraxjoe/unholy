@@ -44,6 +44,7 @@ in
 , logExecution ? true
 # enable bash debug -x just before we execute the main script
 , debugBuild ? false
+, outputs ? [ "out" ]
 # meta attribute, expecting the same functionality as in the regular nixpkgs,
 # e.g. description, license, maintainer, etc.
 , meta ? {} }:
@@ -88,7 +89,7 @@ let
        fi
        export PATH
     '';
-    inherit system allowedSystemCmds logExecution inputPath debugBuild;
+    inherit system allowedSystemCmds logExecution inputPath debugBuild outputs;
   };
 
   # transform the explicitly passed attribute set to be used as environment variable

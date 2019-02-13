@@ -57,10 +57,6 @@ in
 # list of command that will be exposed from the environment bin
 # folder into the top bin folder of the derivation
 , exposedCmds ? []
-# TODO: split the wheel building process into some other derivation.
-# copy over the wheels that were installed in the virtualenv,
-# we don't have any notion of multiple outputs
-, includeWheelsInOutput ? false
 # keep a log of all the verbose ouput of the execution
 # of the building process under var/log/
 , logExecution ? false
@@ -114,7 +110,6 @@ let
     buildFindLinks = makeFindLinks buildRequires;
     ###
     inherit
-      includeWheelsInOutput
       exposedCmds
       virtualEnvTar
       systemPython
@@ -125,6 +120,7 @@ let
 in
 mkBuild {
   inherit name namePrefix logExecution directAttrs debugBuild meta;
+  outputs = [ "out" "wheels" ];
   allowedSystemCmds = [
     # the lsb_release from nix doesn't detect the "Distribution ID"
     # and it doesn't work with the linux distribution detection in pip

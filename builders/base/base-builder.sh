@@ -15,6 +15,7 @@ ensureNixSupportDir() {
     fi
 }
 
+
 addHydraBuildProduct() {
     ensureNixSupportDir
     # the type and subtype specifically has to match:
@@ -76,12 +77,12 @@ loggedExecution(){
 }
 
 plainExecution(){
-    # make the base directory
-    mkdir $out
     set -v # set verbose option
     source $scriptPath
     set +v # unset verbose option
 }
+
+
 
 
 if [[ -n "$debugBuild" ]]; then
@@ -93,8 +94,17 @@ if [[ -n "$debugBuild" ]]; then
     echo "############################################"
     set -x
 fi
+
+for output in $outputs; do
+    mkdir "${!output}"
+done
+
 if [[ -n "$logExecution" ]]; then
     loggedExecution
 else
     plainExecution
 fi
+
+for output in $outputs; do
+    addHydraBuildProduct "nix-build" "${output}" "${!output}"
+done
