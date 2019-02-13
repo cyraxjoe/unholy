@@ -43,6 +43,7 @@ in
 , nixBinaryInstallerComp ? null
 , dockerExec ? "/usr/bin/docker"
 , logExecution ? false
+, namePrefix ? null
 , meta ? {}
 }:
 
@@ -127,7 +128,7 @@ let
   );
 in
   mkBuild {
-    inherit name logExecution meta;
+    inherit name logExecution meta namePrefix;
     scriptPath = ./base-builder.sh;
     buildInputs = with pkgs; [ gnutar gnugrep bzip2 ];
     allowedSystemCmds = [

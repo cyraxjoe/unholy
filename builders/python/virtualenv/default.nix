@@ -12,7 +12,7 @@ in
 # string to be used a prefix to the name,
 # if is set to null, then the resulting name
 # will be based solely on the `name` parameter
-, namePrefix ? "unholy-venv"
+, namePrefix ? "venv"
 ##################################
 ##########
 # requires = {
