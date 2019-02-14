@@ -20,4 +20,3 @@ fi
 
 set -eu
 nix-build $(buildArguments)  $UNHOLY_EXPRESSION -A all  -o $RESULT_LINK
-ls -l $OUTPUT_DIR
