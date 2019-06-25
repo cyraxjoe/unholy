@@ -46,6 +46,8 @@ RUN mkdir @ARGS_DIR@
 # CUSTOM_ARGS
 @CUSTOM_ARGS@
 #
+# TODO: make this conditional?
+COPY source/ $HOME/source
 COPY unholy-expression $HOME/unholy-expression
 COPY build.sh $HOME/
 # set the USER environment variable, otherwise the

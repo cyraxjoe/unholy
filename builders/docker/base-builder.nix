@@ -24,6 +24,9 @@ in
 # refer to the root of the unholy lib, we are going to copy over
 # this directory into the docker container
 , unholySrc ? ../../.
+# the main codebase or other build source that is needed in the container
+# at build time
+, mainBuildSource ? null
 # this will cause to run docker build with "--force-rm" to ensure
 # that a potential failure in the build does not left a container
 # as a side-effect on the system.
@@ -142,7 +145,8 @@ in
          keepBuildImage pruneUntaggedParents
          nixInstaller nixInstallerComp
          targetSystemBuildDependencies
-         targetSystemRunDependencies;
+         targetSystemRunDependencies
+         mainBuildSource;
       dockerFile = ./dockerfiles + "/${ targetSystem }/Dockerfile";
       entryPoint = ./dockerfiles + "/${ targetSystem }/entrypoint.sh";
       buildScript = ./dockerfiles + "/${ targetSystem }/build.sh";

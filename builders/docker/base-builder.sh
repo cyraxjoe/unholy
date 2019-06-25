@@ -23,6 +23,17 @@ topDirNameInTar(){
     tar -tjf $1 2>/dev/null | head -1 | cut -f1 -d"/"
 }
 
+copySrc() {
+    # for now we always create the directory and it will always be copied into
+    # the container. ideally this should only be copied as needed.
+    mkdir $DOCKER_CONTEXT/source
+
+    if [ -n $mainBuildSource ]; then
+        echo "Found required source ${mainBuildSource}. Copying to ${DOCKER_CONTEXT}/source"
+        cp -r $mainBuildSource/* $DOCKER_CONTEXT/source -v
+    fi
+}
+
 configureBuildArgument(){
     local arg_name=$1
     local arg_value="$2"
@@ -117,6 +128,8 @@ makeDockerBuild(){
     cp $buildScript $DOCKER_CONTEXT/build.sh
     setupNixBinaryInstaller
     setupCustomArguments
+    # copy the given source into the container to be used in the build
+    copySrc
     chmod +w $DOCKER_CONTEXT/Dockerfile
     # get the dockerfile fragment configuration of the
     # custom arguments, and remove the last line break
@@ -238,6 +251,8 @@ DOCKER_CONTEXT="docker-context"
 ARGS_DIR="\$HOME/_arguments"
 CUSTOM_ARGS_NAMES_FILE="_arg_names"
 CUSTOM_ARGS_FILE="_args"
+
+
 
 # we don't need the conditional &&, we're already at the mercy of errexit,
 # if we were to use "&&", it would have the effect that it would ignore the errexit
