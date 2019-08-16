@@ -1,3 +1,6 @@
+# TODO: need to add an input for additional PPAs, e.g. the deadsnakes PPA
+# to be used for python builds
+
 { pkgs
 , fetchurl
 , lib
@@ -10,7 +13,7 @@ let
    inherit (utils) bigErrorMsg;
 in
 { name
-, unholyExpression
+, unholyScript
 , unholyExpressionArgs ? {}
 , targetSystem ? "ubuntu-16.04"
 , targetSystemBuildDependencies ? []
@@ -24,9 +27,7 @@ in
 # refer to the root of the unholy lib, we are going to copy over
 # this directory into the docker container
 , unholySrc ? ../../.
-# the main codebase or other build source that is needed in the container
-# at build time
-, mainBuildSource ? null
+
 # this will cause to run docker build with "--force-rm" to ensure
 # that a potential failure in the build does not left a container
 # as a side-effect on the system.
@@ -42,13 +43,12 @@ in
 # the default behaviour in docker is to prune
 # all the untagger parent layers
 , pruneUntaggedParents ? true
-, nixBinaryInstaller ? null
-, nixBinaryInstallerComp ? null
 , dockerExec ? "/usr/bin/docker"
 , logExecution ? false
 , namePrefix ? null
 , outputs ? [ "out" ]
 , meta ? {}
+, systemPython ? "/usr/bin/python"
 }:
 
 #######################
@@ -114,22 +114,6 @@ let
           (unholyExpressionArgs // { inherit unholySrc; })
   );
 
-  defaultNixInstaller = fetchurl {
-    url = https://nixos.org/releases/nix/nix-2.2.1/nix-2.2.1-x86_64-linux.tar.bz2;
-    sha256 = "1q3rr8g8fi92xlvw504j4fnlxsr4gaq0g44c4x66ib8c4n7y4ag2";
-  };
-
-  nixInstaller = (
-    if nixBinaryInstaller == null then
-     defaultNixInstaller
-    else nixBinaryInstaller
-  );
-
-  nixInstallerComp = (
-    if nixBinaryInstallerComp == null then
-     ".tar.bz2"
-    else nixBinaryInstallerComp
-  );
 in
   mkBuild {
     inherit name logExecution meta namePrefix outputs;
@@ -140,13 +124,12 @@ in
     ];
     directAttrs = {
       inherit
-         unholyExpression buildArgs
+         unholyScript buildArgs
          alwaysRemoveBuildContainers noBuildCache
          keepBuildImage pruneUntaggedParents
-         nixInstaller nixInstallerComp
          targetSystemBuildDependencies
          targetSystemRunDependencies
-         mainBuildSource;
+         systemPython;
       dockerFile = ./dockerfiles + "/${ targetSystem }/Dockerfile";
       entryPoint = ./dockerfiles + "/${ targetSystem }/entrypoint.sh";
       buildScript = ./dockerfiles + "/${ targetSystem }/build.sh";

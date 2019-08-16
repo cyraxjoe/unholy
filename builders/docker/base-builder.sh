@@ -23,16 +23,7 @@ topDirNameInTar(){
     tar -tjf $1 2>/dev/null | head -1 | cut -f1 -d"/"
 }
 
-copySrc() {
-    # for now we always create the directory and it will always be copied into
-    # the container. ideally this should only be copied as needed.
-    mkdir $DOCKER_CONTEXT/source
 
-    if [ -n $mainBuildSource ]; then
-        echo "Found required source ${mainBuildSource}. Copying to ${DOCKER_CONTEXT}/source"
-        cp -r $mainBuildSource/* $DOCKER_CONTEXT/source -v
-    fi
-}
 
 configureBuildArgument(){
     local arg_name=$1
@@ -101,35 +92,15 @@ setupCustomArguments(){
 }
 
 
-setupNixBinaryInstaller(){
-    if [[ $nixInstallerComp == ".tar.bz2" ]]; then
-        cp $nixInstaller nix-installer.tar.bz2
-        # output stderr in to /dev/null because apparently tar can handle
-        # list command with the pipe filtering of head+cut, it reports a "tar: write error"
-        local nix_dir_name=$(topDirNameInTar nix-installer.tar.bz2)
-        # extract and delete
-        tar -xjf nix-installer.tar.bz2 && rm nix-installer.tar.bz2
-        mv $nix_dir_name $DOCKER_CONTEXT/nix-binary-installer
-    elif [[ -z $nixInstallerComp ]]; then # assume is a directory
-        cp -R $nixInstaller $DOCKER_CONTEXT/nix-binary-installer
-    else
-        echo "Unable to determine how to obtain the nix binary installer" >&2
-        exit 1
-    fi
-}
-
-
 makeDockerBuild(){
     mkdir $DOCKER_CONTEXT
     cp $dockerFile $DOCKER_CONTEXT/Dockerfile
-    # this can be a single file or a directory with default.nix
-    cp -r $unholyExpression $DOCKER_CONTEXT/unholy-expression
+    cp $unholyScript $DOCKER_CONTEXT/unholy-script.sh
     cp $entryPoint $DOCKER_CONTEXT/entrypoint.sh
     cp $buildScript $DOCKER_CONTEXT/build.sh
-    setupNixBinaryInstaller
+
     setupCustomArguments
-    # copy the given source into the container to be used in the build
-    copySrc
+
     chmod +w $DOCKER_CONTEXT/Dockerfile
     # get the dockerfile fragment configuration of the
     # custom arguments, and remove the last line break
@@ -139,7 +110,8 @@ makeDockerBuild(){
                       --subst-var outputs \
                       --subst-var targetSystemBuildDependencies \
                       --subst-var CUSTOM_ARGS \
-                      --subst-var ARGS_DIR
+                      --subst-var ARGS_DIR \
+                      --subst-var systemPython
     #echo "Final dockerfile"
     #echo "============================"
     #cat $DOCKER_CONTEXT/Dockerfile

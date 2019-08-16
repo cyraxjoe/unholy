@@ -15,8 +15,8 @@ if (! test -x $OUTPUT_DIR); then
     mkdir -p $OUTPUT_DIR
 fi
 
-# load the nix environment variables
-. .bash_profile
 
 set -eu
-nix-build $(buildArguments)  $UNHOLY_EXPRESSION -A all  -o $RESULT_LINK
+
+# call the main build script
+/unholy-script.sh

@@ -5,6 +5,7 @@
 
 params=( $@ )
 
+# TODO: remove nix-store commands and find the correct dir for the output
 case "${params[0]}" in
     export)
         nix-store --export "$(nix-store -qR $RESULT_LINK)"
@@ -22,7 +23,8 @@ case "${params[0]}" in
         else
             cd $RESULT_LINK
         fi
-        tar  --create .
+        cd /home/unholy-user/exports/
+        tar  --create ./*
     ;;
     path)
         readlink -e $RESULT_LINK

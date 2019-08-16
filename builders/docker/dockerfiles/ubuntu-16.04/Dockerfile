@@ -7,33 +7,21 @@ RUN useradd --comment "Unholy build user" \
             --home-dir $HOME \
             --create-home $USER \
             --shell /bin/bash
-##########################
-# nix installation
-##########################
-# disable the sandbox in the nix, otherwise it will fail
-# on the clone syscall required for the nix sandbox to work
-RUN mkdir -p /nix /etc/nix &&  echo 'sandbox = false' > /etc/nix/nix.conf
-# we are going to make  a single user nix installation
-RUN chown $USER /nix
-USER $USER
-WORKDIR $HOME
-# make sure we have a profile
-RUN touch .bash_profile
-COPY nix-binary-installer ./nix-binary-installer
-WORKDIR $HOME/nix-binary-installer
-RUN /bin/sh ./install --no-daemon
-WORKDIR $HOME
-#############################
-# end of the nix installation
-#############################
-USER root
-# remove the nix installer folder as root
-RUN rm -rf $HOME/nix-binary-installer
 
 # install lsb-release so that the virtualenvs can obtain the system
 # information and ca-certificate in case we try to fetch something
 # from the network and is using https (like pip)
 RUN apt-get update && apt-get install -y lsb-release ca-certificates
+
+# added for debugging
+#RUN apt-get update && apt-get install -y tree
+#RUN apt-get update && apt-get install -y iputils-ping
+
+# add python PPA before different versions
+RUN apt-get update && apt-get install -y software-properties-common
+RUN add-apt-repository ppa:deadsnakes/ppa
+RUN apt-get update
+
 # we use a direct string replacement (the @ placeholder)
 # because otherwise docker has issues caching the layer even if we define
 # the same dependencies on a file and then use it to install those
@@ -41,25 +29,31 @@ RUN apt-get update && \
     apt-get install -y @targetSystemBuildDependencies@
 COPY entrypoint.sh /
 RUN chmod +x /entrypoint.sh
+
+
+COPY unholy-script.sh /unholy-script.sh
+RUN chmod +x /unholy-script.sh
+
+#COPY source/ $HOME/source
+#RUN chown -R unholy-user:unholy-user $HOME/source/*
+
+
 USER $USER
+WORKDIR $HOME/
 RUN mkdir @ARGS_DIR@
 # CUSTOM_ARGS
 @CUSTOM_ARGS@
 #
-# TODO: make this conditional?
-COPY source/ $HOME/source
-COPY unholy-expression $HOME/unholy-expression
+#COPY requires/ $HOME/requires
+# make this into unholy-script?
 COPY build.sh $HOME/
-# set the USER environment variable, otherwise the
-# nix profile is not sourced
 ENV USER $USER
 # envvars relevant for built.sh and entrypoint.sh
-ENV STORE_PATH @out@
 ENV OUTPUT_DIR $HOME/output
 ENV RESULT_LINK $OUTPUT_DIR/result
-ENV UNHOLY_EXPRESSION $HOME/unholy-expression
+ENV PYTHON_BIN "@systemPython@"
 ENV OUTPUTS "@outputs@"
 ###
-RUN /bin/bash ./build.sh
+RUN /bin/bash $HOME/build.sh
 CMD [ "" ]
 ENTRYPOINT [ "/entrypoint.sh" ]
