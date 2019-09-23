@@ -1,9 +1,9 @@
 FROM ubuntu:16.04
 ## base build arguments
-ARG USER=unholy-user
+ARG USER=nixvoyager-user
 # configure the base build user
 ENV HOME /home/$USER
-RUN useradd --comment "Unholy build user" \
+RUN useradd --comment "nix-voyager build user" \
             --home-dir $HOME \
             --create-home $USER \
             --shell /bin/bash
@@ -13,14 +13,21 @@ RUN useradd --comment "Unholy build user" \
 # from the network and is using https (like pip)
 RUN apt-get update && apt-get install -y lsb-release ca-certificates
 
-# added for debugging
-#RUN apt-get update && apt-get install -y tree
-#RUN apt-get update && apt-get install -y iputils-ping
-
-# add python PPA before different versions
+# add support for extra repos as needed
 RUN apt-get update && apt-get install -y software-properties-common
-RUN add-apt-repository ppa:deadsnakes/ppa
+
+# add key fingerprints that may be needed for different repos.
+# for now this assumes they're on ubuntu's keyserver. we could instead copy public files
+# (as nix source derivations) into the container, but some sites don't host their full public
+# key
+ENV REPO_KEYS=@targetSystemAptKeys@
+RUN if [ ! -z "${REPO_KEYS}" ]; then apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 "${REPO_KEYS}"; fi
+
+# only add specific PPAs and repos if they've been passed in by the caller
+ENV REPOS=@targetSystemRepos@
+RUN if [ ! -z "${REPOS}" ]; then add-apt-repository "${REPOS}"; fi
 RUN apt-get update
+
 
 # we use a direct string replacement (the @ placeholder)
 # because otherwise docker has issues caching the layer even if we define
@@ -31,27 +38,26 @@ COPY entrypoint.sh /
 RUN chmod +x /entrypoint.sh
 
 
-COPY unholy-script.sh /unholy-script.sh
-RUN chmod +x /unholy-script.sh
-
-#COPY source/ $HOME/source
-#RUN chown -R unholy-user:unholy-user $HOME/source/*
+COPY nixvoyager-script.sh /nixvoyager-script.sh
+RUN chmod +x /nixvoyager-script.sh
 
 
 USER $USER
 WORKDIR $HOME/
 RUN mkdir @ARGS_DIR@
+
 # CUSTOM_ARGS
 @CUSTOM_ARGS@
-#
-#COPY requires/ $HOME/requires
-# make this into unholy-script?
+
+# additional environment variables that are passed through and not derived from nix inputs
+#@ENV_ARGS@
+
 COPY build.sh $HOME/
 ENV USER $USER
 # envvars relevant for built.sh and entrypoint.sh
 ENV OUTPUT_DIR $HOME/output
 ENV RESULT_LINK $OUTPUT_DIR/result
-ENV PYTHON_BIN "@systemPython@"
+
 ENV OUTPUTS "@outputs@"
 ###
 RUN /bin/bash $HOME/build.sh

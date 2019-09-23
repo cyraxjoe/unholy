@@ -73,7 +73,7 @@ loggedExecution(){
     logMessageWithoutTS "###############################################################################"
     logMessageWithoutTS "END OF BUILD '$name'"
     # sed -e 's/^\(\[.\{19,\}\]\)[[:space:]]++[[:space:]]\(.*\)/\1 $ \2/g'
-    addHydraBuildProduct nix-build unholy $out
+    addHydraBuildProduct nix-build nixvoyager $out
 }
 
 plainExecution(){

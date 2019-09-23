@@ -9,13 +9,15 @@
 let
    inherit (builders) mkBuild;
    inherit (builtins) elemAt toString attrNames any hasAttr isInt;
-   inherit (lib) splitString optional lists mapAttrsToList;
+   inherit (lib) splitString optional lists mapAttrsToList hasPrefix removePrefix;
    inherit (utils) bigErrorMsg;
 in
 { name
-, unholyScript
-, unholyExpressionArgs ? {}
+, nixVoyagerScript
+, nixVoyagerExpressionArgs ? {}
 , targetSystem ? "ubuntu-16.04"
+, targetSystemRepos ? []
+, targetSystemAptKeys ? []
 , targetSystemBuildDependencies ? []
 # currently we are not doing anything with this attribute
 # but as a TODO: build a script for each target system that
@@ -24,9 +26,9 @@ in
 # dpkg-query --show --showformat='${db:Status-Status}\n' '<pkg>'
 # dpkg-query --show --showformat='${Version}\n' '<pkg>')
 , targetSystemRunDependencies ? []
-# refer to the root of the unholy lib, we are going to copy over
+# refer to the root of the nix-voyager lib, we are going to copy over
 # this directory into the docker container
-, unholySrc ? ../../.
+, nixVoyagerSrc ? ../../.
 
 # this will cause to run docker build with "--force-rm" to ensure
 # that a potential failure in the build does not left a container
@@ -48,7 +50,7 @@ in
 , namePrefix ? null
 , outputs ? [ "out" ]
 , meta ? {}
-, systemPython ? "/usr/bin/python"
+, envVars ? {}
 }:
 
 #######################
@@ -57,12 +59,12 @@ in
 let
   restrictedNames = {
     storePath = "This attribute will be set at build time";
-    unholySrc = "Used to pass the unholy library into the build";
+    nixVoyagerSrc = "Used to pass the nix-voyager library into the build";
   };
-  names = attrNames  unholyExpressionArgs;
+  names = attrNames  nixVoyagerExpressionArgs;
 in
 assert (bigErrorMsg (! (any (n: hasAttr n restrictedNames) names)) ''
-  Invalid argument in 'unholyExpressionArgs':
+  Invalid argument in 'nixVoyagerExpressionArgs':
      Provided: [ ${ toString names } ]
      Restricted: [ ${ toString (attrNames restrictedNames) } ]'');
 ########################
@@ -75,43 +77,55 @@ let
 
   # special values to be able to replicate the arguments inside the
   # docker nix-build call
-  unholyTrueValue = "_unholy_true_value_";
+  voyagerTrueValue = "_voyager_true_value_";
 
-  unholyFalseValue = "_unholy_false_value_";
+  voyagerFalseValue = "_voyager_false_value_";
   #
-  unholyNullValue = "_unholy_null_value_";
+  voyagerNullValue = "_voyager_null_value_";
   #
-  unholyEmptyStringValue = "_unholy_empty_string_value_";
+  voyagerEmptyStringValue = "_voyager_empty_string_value_";
   #
-  unholyIntegerPrefix = "_unholy_integer";
+  voyagerIntegerPrefix = "_voyager_integer";
   #
-  transformToUnholyInteger = val:
-    "${ unholyIntegerPrefix }:${ toString val }";
+  voyagerPathListPrefix = "_voyager_path_list_";
   #
-  specialUnholyValues = {
-    inherit unholyTrueValue unholyFalseValue
-            unholyNullValue unholyEmptyStringValue
-            unholyIntegerPrefix;
+  transformToVoyagerInteger = val:
+    "${ voyagerIntegerPrefix }:${ toString val }";
+  #
+  specialNixVoyagerValues = {
+    inherit voyagerTrueValue voyagerFalseValue
+            voyagerNullValue voyagerEmptyStringValue
+            voyagerIntegerPrefix;
   };
+
   # pretty sad implementation.. but does the trick,
   # to provide special strings to determine
   # what was the original value
+  # TODO: maybe use a nix set for these vars and require callers
+  # to specify the types for decoding
   getShellSafeValue = val:
      if val == null
-     then unholyNullValue
+     then voyagerNullValue
      else (if val == ""
-           then unholyEmptyStringValue
+           then voyagerEmptyStringValue
            else (if val == false
-                 then unholyFalseValue
+                 then voyagerFalseValue
                  else (if val == true
-                       then unholyTrueValue
+                       then voyagerTrueValue
                        else (if (isInt val) == true
-                             then transformToUnholyInteger val
+                             then transformToVoyagerInteger val
                              else val))));
+
   buildArgs =
    lists.flatten (
        mapAttrsToList (name: value:  [ name (getShellSafeValue value) ])
-          (unholyExpressionArgs // { inherit unholySrc; })
+          (nixVoyagerExpressionArgs // { inherit nixVoyagerSrc; })
+  );
+
+  passThruEnv =
+   lists.flatten (
+       mapAttrsToList (name: value:  [ name (getShellSafeValue value) ])
+          envVars
   );
 
 in
@@ -124,14 +138,14 @@ in
     ];
     directAttrs = {
       inherit
-         unholyScript buildArgs
+         nixVoyagerScript buildArgs passThruEnv
          alwaysRemoveBuildContainers noBuildCache
          keepBuildImage pruneUntaggedParents
          targetSystemBuildDependencies
          targetSystemRunDependencies
-         systemPython;
+         targetSystemRepos targetSystemAptKeys;
       dockerFile = ./dockerfiles + "/${ targetSystem }/Dockerfile";
       entryPoint = ./dockerfiles + "/${ targetSystem }/entrypoint.sh";
       buildScript = ./dockerfiles + "/${ targetSystem }/build.sh";
-    } // specialUnholyValues;
+    } // specialNixVoyagerValues;
   }

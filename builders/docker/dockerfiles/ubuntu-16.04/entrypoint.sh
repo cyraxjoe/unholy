@@ -1,6 +1,6 @@
 #!/bin/bash
 # source the bash profile, this script is expected to be
-# ran from the home of the unholy build user
+# ran from the home of the nixvoyager build user
 . .bash_profile
 
 params=( $@ )
@@ -23,7 +23,7 @@ case "${params[0]}" in
         else
             cd $RESULT_LINK
         fi
-        cd /home/unholy-user/exports/
+        cd /home/nixvoyager-user/exports/
         tar  --create ./*
     ;;
     path)

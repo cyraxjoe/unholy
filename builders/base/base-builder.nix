@@ -14,7 +14,7 @@ in
 # to do that.
 # The full name will be ${namePrefix}-${name} or just ${name}
 # in case namePrefix is null.
-, namePrefix ? "unholy"
+, namePrefix ? "nixVoyager"
 # mandatory script or scriptPath
 , script ? null
 , scriptPath ? null

@@ -1,4 +1,5 @@
-# builds copyable virtualenvs on ubuntu 16.04
+# python wheel builder that compiles extensions against ubuntu 16.04 libraries
+
 { pkgs , fetchurl, lib , builders }:
 let
    inherit (builtins) removeAttrs;
@@ -8,22 +9,16 @@ let
    inherit (builders) mkDockerBuild;
 in
 {
-# name of the package
+# name of the wheel package
   name
 
-# a path (or nix derivation) containing all the python dists you want in the
-# virtualenv. the builder will loop over the given directory and run
-# `pip install <dist>` on each item. You can use source dists/wheel dists/etc,
-# as long as they are pip installable.
-# (for nix derivations, it will loop over the /nix/store/<hash>-your-derivation/
-# directory)
-, pythonDependencies
+# list of nix derivations containing the python source distribution
+, sources
 
 # full path to the python executable in the system, that's
 # going to be used to build the virtualenv
 , systemPython
 
-# optionally supply a different version of virtualenv
 , virtualEnvSrc ? null
 
 # this is mainly for specifying alternate debian/ubuntu repos for
@@ -39,14 +34,21 @@ in
 
 , extraTargetSystemBuildDependencies ? []
 }:
+
+# TODO/discussion item: we could use json structures or declarative bash arrays
+# instead of the _voyager_path_list_ prefix below. when we have more than one use
+# case we should compare options
 mkDockerBuild {
   name = name;
 
-  nixVoyagerScript = ./build_virtualenv.sh;
+  nixVoyagerScript = ./build_wheel.sh;
 
   envVars = { inherit systemPython; };
   nixVoyagerExpressionArgs = {
-    inherit pythonDependencies;
+    # the wheel builder is the only builder that needs to construct a list of file paths,
+    # but ideally we'll have an importable function to prefix `_voyager_path_list_` in case
+    # it ever changes
+    sources = "_voyager_path_list_" + builtins.concatStringsSep ":" sources;
     virtualEnvSrc = if (virtualEnvSrc != null) then virtualEnvSrc else  pkgs.fetchurl {
       url = https://files.pythonhosted.org/packages/22/e1/ec3567a4471aa812a3fcf85b2f25e1b79a617da8b1f716ea3a9882baf4fb/virtualenv-16.7.3.tar.gz;
       sha256 = "5e4d92f9a36359a745ddb113cabb662e6100e71072a1e566eb6ddfcc95fdb7ed";
@@ -54,9 +56,7 @@ mkDockerBuild {
   };
   pruneUntaggedParents = false;
   dockerExec = "/usr/bin/docker";
-
-  # TODO: this should not be hardcoded, but it's the only current use case. it can be
-  # changed when we have more use cases.
+  # this could also be changed
   targetSystem = "ubuntu-16.04";
 
   inherit targetSystemRepos targetSystemAptKeys;

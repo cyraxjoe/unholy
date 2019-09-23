@@ -24,14 +24,37 @@ topDirNameInTar(){
 }
 
 
-
 configureBuildArgument(){
     local arg_name=$1
     local arg_value="$2"
-    local unholyIntegerRegex="^${unholyIntegerPrefix}:[0-9]+$"
+    local voyagerIntegerRegex="^${voyagerIntegerPrefix}:[0-9]+$"
+    local voyagerPathRegex="^${voyagerPathListPrefix}"
     declare -a commands
     echo "Configuring build argument '$arg_name'"
-    if [[ -e $arg_value ]]; then
+    echo "arg value is '$arg_value'"
+
+    # TODO: if this approach proves useful, we might want to just have one
+    # standard type for a list of filepaths (whether it's a singleton or not).
+    # this would require callers to specify that they're paths, but this would
+    # mean a value passed in like `"/usr/bin/python"`, which may be needed as a
+    # string value, won't be copied into the container.
+    ls -lsa $DOCKER_CONTEXT
+    if [[ $arg_value =~ $voyagerPathRegex ]]; then
+        local safe_file_paths=""
+        for sub_arg in $(echo $arg_value | sed s/_voyager_path_list_// | tr ':' '\n'); do
+            local safe_name=$(safeFileNameFromStorePath $sub_arg)
+            # move from the origin into the docker context
+            cp -r $sub_arg $DOCKER_CONTEXT/
+            # rename
+            mv $DOCKER_CONTEXT/$(basename $sub_arg) "$DOCKER_CONTEXT/$safe_name"
+            local arg_path_dest="$ARGS_DIR/$safe_name"
+            # forge the dockerfile commands
+            commands=("${commands[@]}" "COPY \"$safe_name\" \"$arg_path_dest\"")
+            safe_file_paths="${safe_file_paths}:$arg_path_dest"
+        done
+        commands=("${commands[@]}" "ENV NIXVOYAGER_ARG_$arg_name \"$safe_file_paths\"")
+
+    elif [[ -e $arg_value ]]; then
         # if it exists in the filesystem we assume is a file
          local safe_name=$(safeFileNameFromStorePath $arg_value)
         # move from the origin into the docker context
@@ -41,35 +64,34 @@ configureBuildArgument(){
         local arg_path_dest="$ARGS_DIR/$safe_name"
         # forge the dockerfile commands
         commands=("${commands[@]}" "COPY \"$safe_name\" \"$arg_path_dest\"")
-        commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name \"$arg_path_dest\"")
-    elif [[ $arg_value =~ $unholyIntegerRegex ]]; then # is an integer
+        commands=("${commands[@]}" "ENV NIXVOYAGER_ARG_$arg_name \"$arg_path_dest\"")
+    elif [[ $arg_value =~ $voyagerIntegerRegex ]]; then # is an integer
         # extract the actual integer that was passed
         local integer_value="${arg_value##*:}"
-        commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name $integer_value")
+        commands=("${commands[@]}" "ENV NIXVOYAGER_ARG_$arg_name $integer_value")
     else
         case "$arg_value" in
-            "$unholyTrueValue")
-                commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name true")
+            "$voyagerTrueValue")
+                commands=("${commands[@]}" "ENV NIXVOYAGER_ARG_$arg_name true")
             ;;
-            "$unholyFalseValue")
-                commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name false")
+            "$voyagerFalseValue")
+                commands=("${commands[@]}" "ENV NIXVOYAGER_ARG_$arg_name false")
             ;;
-            "$unholyNullValue")
-                commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name null")
+            "$voyagerNullValue")
+                commands=("${commands[@]}" "ENV NIXVOYAGER_ARG_$arg_name null")
             ;;
-            "$unholyEmptyStringValue")
-                commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name '\"\"'")
+            "$voyagerEmptyStringValue")
+                commands=("${commands[@]}" "ENV NIXVOYAGER_ARG_$arg_name '\"\"'")
             ;;
             *) # assume that anything else is a string
                # (not a file, integer, null, false, true, empty string)
-                commands=("${commands[@]}" "ENV UNHOLY_ARG_$arg_name '\"$arg_value\"'")
+                commands=("${commands[@]}" "ENV NIXVOYAGER_ARG_$arg_name '\"$arg_value\"'")
             ;;
         esac
     fi
     echo "$arg_name" >> $CUSTOM_ARGS_NAMES_FILE
     printf '%s\n' "${commands[@]}"  >> $CUSTOM_ARGS_FILE
 }
-
 
 setupCustomArguments(){
     # we are consuming the argument two at a time,
@@ -88,18 +110,38 @@ setupCustomArguments(){
         done
     }
     local names=$(cat $CUSTOM_ARGS_NAMES_FILE | tr "\n" " " | head -c -1)
-    echo "ENV UNHOLY_ARGUMENTS \"$names\"" >>  $CUSTOM_ARGS_FILE
+    echo "ENV NIXVOYAGER_ARGUMENTS \"$names\"" >>  $CUSTOM_ARGS_FILE
 }
 
+setupEnvVariables(){
+    # we are consuming the argument two at a time,
+    # on a SUB-SHELL therefore... we are not sharing
+    # the same variable space (in terms of writing into
+    # the one at the top-level), all the argument
+    # processing is done indirectly by appending to
+    # CUSTOM_ARGS_NAMES_FILE and CUSTOM_ARGS_FILE
+    echo $passThruEnv | sed 's/ /\n/g' | {
+        local arg_name
+        local arg_value
+        while read arg_name
+        do
+            read arg_value
+            echo "$arg_name" >> $CUSTOM_ARGS_NAMES_FILE
+            printf 'ENV %s "%s"\n' "${arg_name}" "${arg_value}"  >> $CUSTOM_ARGS_FILE
+        done
+    }
+}
 
 makeDockerBuild(){
     mkdir $DOCKER_CONTEXT
     cp $dockerFile $DOCKER_CONTEXT/Dockerfile
-    cp $unholyScript $DOCKER_CONTEXT/unholy-script.sh
+    cp $nixVoyagerScript $DOCKER_CONTEXT/nixvoyager-script.sh
     cp $entryPoint $DOCKER_CONTEXT/entrypoint.sh
     cp $buildScript $DOCKER_CONTEXT/build.sh
 
     setupCustomArguments
+
+    setupEnvVariables
 
     chmod +w $DOCKER_CONTEXT/Dockerfile
     # get the dockerfile fragment configuration of the
@@ -111,7 +153,10 @@ makeDockerBuild(){
                       --subst-var targetSystemBuildDependencies \
                       --subst-var CUSTOM_ARGS \
                       --subst-var ARGS_DIR \
-                      --subst-var systemPython
+                      --subst-var targetSystemRepos \
+                      --subst-var targetSystemAptKeys
+
+    # uncomment the `echo` statements below to see the fully rendered Dockerfile:
     #echo "Final dockerfile"
     #echo "============================"
     #cat $DOCKER_CONTEXT/Dockerfile
