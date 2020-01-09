@@ -62,4 +62,5 @@ ENV OUTPUTS "@outputs@"
 ###
 RUN /bin/bash $HOME/build.sh
 CMD [ "" ]
+
 ENTRYPOINT [ "/entrypoint.sh" ]

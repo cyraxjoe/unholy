@@ -1,39 +1,18 @@
 #!/bin/bash
-# source the bash profile, this script is expected to be
-# ran from the home of the nixvoyager build user
-. .bash_profile
 
-params=( $@ )
+# this script is run after the Dockerfile is created and build.sh has finished
+# running. docker `ENTRYPOINT`s are designed for stable commands that should be
+# run as part of setting up the container. in this case the main purpose of
+# the container is to generate a tar file of whatever was built, so the
+# DOCKERFILE runs this script using the `ENTRYPOINT` instruction.
+set -e;
+set -u;
 
-# TODO: remove nix-store commands and find the correct dir for the output
-case "${params[0]}" in
-    export)
-        nix-store --export "$(nix-store -qR $RESULT_LINK)"
-    ;;
-    dump)
-        nix-store --dump "$(nix-store -qR $RESULT_LINK)"
-    ;;
-    tar)
-        ## currently this is the only command on which we are relying on
-        ## the build process, the others are niceties and some were used for
-        ## experiments
-        output="${params[1]}"
-        if [[ -n "$output" ]] && [[ $output != "out" ]]; then
-            cd "${RESULT_LINK}-${output}"
-        else
-            cd $RESULT_LINK
-        fi
-        cd /home/nixvoyager-user/exports/
-        tar  --create ./*
-    ;;
-    path)
-        readlink -e $RESULT_LINK
-    ;;
-    "")
-        /bin/bash -l -i
-        ;;
-    *)
-        echo "Invalid command"
-        exit 1
-        ;;
-esac
+# creates a tar of whatever was built in the container and placed in the
+# result folder
+if [[ -n "$RESULT_LINK" ]]; then
+    cd $RESULT_LINK
+    tar --create ./*
+else
+    echo "ERROR: `ENV RESULT_LINK` must be set in the Dockerfile."
+fi

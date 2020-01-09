@@ -1,4 +1,8 @@
 #!/bin/bash
+
+set -e;
+set -u;
+
 #########################################################
 # Support functions
 #########################################################
@@ -19,19 +23,19 @@ safeFileNameFromStorePath(){
     echo "${filename:23}"
 }
 
-topDirNameInTar(){
-    tar -tjf $1 2>/dev/null | head -1 | cut -f1 -d"/"
-}
 
-
+# this is the transformation layer that takes nix inputs and converts them
+# to something meaningful inside of a docker container. this includes setting
+# env variables and copying files/file paths
 configureBuildArgument(){
     local arg_name=$1
     local arg_value="$2"
     local voyagerIntegerRegex="^${voyagerIntegerPrefix}:[0-9]+$"
     local voyagerPathRegex="^${voyagerPathListPrefix}"
     declare -a commands
-    echo "Configuring build argument '$arg_name'"
-    echo "arg value is '$arg_value'"
+    # helpful debug print statements
+    #echo "Configuring build argument '$arg_name'"
+    #echo "arg value is '$arg_value'"
 
     # TODO: if this approach proves useful, we might want to just have one
     # standard type for a list of filepaths (whether it's a singleton or not).
@@ -93,6 +97,10 @@ configureBuildArgument(){
     printf '%s\n' "${commands[@]}"  >> $CUSTOM_ARGS_FILE
 }
 
+# this function will take the nix input args, configure each (which may
+# include copying files into the docker context), and then create a series of
+# ENV <variable> <value>
+# declarations to be used in the Dockerfile
 setupCustomArguments(){
     # we are consuming the argument two at a time,
     # on a SUB-SHELL therefore... we are not sharing
@@ -100,6 +108,9 @@ setupCustomArguments(){
     # the one at the top-level), all the argument
     # processing is done indirectly by appending to
     # CUSTOM_ARGS_NAMES_FILE and CUSTOM_ARGS_FILE
+
+    # helpful debug statement
+    # echo "full args are ${buildArgs}"
     echo $buildArgs | sed 's/ /\n/g' | {
         local arg_name
         local arg_value
@@ -113,13 +124,17 @@ setupCustomArguments(){
     echo "ENV NIXVOYAGER_ARGUMENTS \"$names\"" >>  $CUSTOM_ARGS_FILE
 }
 
+# this function is very similar to setupCustomArguments, but it does *not*
+# call configureBuildArgument. this means that any env values used here are
+# passed through as-is. the variable names won't be prefixed with
+# NIXVOYAGER_ARG_, and all values will be treated as strings. This is useful
+# when you want to pass in a variable like ENV PYTHON_BIN /usr/bin/python3.6
+# and not have nix voyager attempt to copy that file inside the container
+# or otherwise modify the value.
 setupEnvVariables(){
-    # we are consuming the argument two at a time,
-    # on a SUB-SHELL therefore... we are not sharing
-    # the same variable space (in terms of writing into
-    # the one at the top-level), all the argument
-    # processing is done indirectly by appending to
-    # CUSTOM_ARGS_NAMES_FILE and CUSTOM_ARGS_FILE
+    # helpful debug statement
+    # echo "the pass thru env is $passThruEnv"
+
     echo $passThruEnv | sed 's/ /\n/g' | {
         local arg_name
         local arg_value
@@ -132,6 +147,9 @@ setupEnvVariables(){
     }
 }
 
+# the main build will create the $DOCKER_CONTEXT folder (a working directory
+# that is accessible during the container build), copy all the required
+# setup scripts, configure all the build arguments,
 makeDockerBuild(){
     mkdir $DOCKER_CONTEXT
     cp $dockerFile $DOCKER_CONTEXT/Dockerfile
@@ -141,12 +159,17 @@ makeDockerBuild(){
 
     setupCustomArguments
 
-    setupEnvVariables
+    if [[ -n "$passThruEnv" ]]; then
+        setupEnvVariables
+    fi
 
     chmod +w $DOCKER_CONTEXT/Dockerfile
     # get the dockerfile fragment configuration of the
     # custom arguments, and remove the last line break
     CUSTOM_ARGS="$(cat $CUSTOM_ARGS_FILE | head -c -1)"
+
+    # this is where we replace any @var@ variables from our nix Dockerfile
+    # template
     substituteInPlace $DOCKER_CONTEXT/Dockerfile \
                       --subst-var out \
                       --subst-var outputs \
@@ -270,9 +293,5 @@ CUSTOM_ARGS_NAMES_FILE="_arg_names"
 CUSTOM_ARGS_FILE="_args"
 
 
-
-# we don't need the conditional &&, we're already at the mercy of errexit,
-# if we were to use "&&", it would have the effect that it would ignore the errexit
-# behavior inside the function (not failing on the first error)
 makeDockerBuild
 extractBuildFromDockerImage
