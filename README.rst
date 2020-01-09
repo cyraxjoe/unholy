@@ -22,3 +22,22 @@ Example: you need the python ``bcrypt`` library in your python app and want a st
 using the python wheel builder, specify which system dependencies are required for the build, and it will be compiled against them in a container.
 The ``.whl`` file will then be exported out and made available in the nix store. The compiled shared object file will link against the system
 ``libc``, allowing administrators to update ``libc`` as needed without having to reinstall anything in nix.
+
+
+Setup
+=====
+
+Requirements::
+
+  * nix (https://nixos.org/nix/ )
+  * docker (https://docs.docker.com/install/linux/docker-ce/ubuntu/)
+  * add your nix user(s) to the `docker` system group
+
+
+Next steps
+==========
+
+This project is still in the early days of development. Additional examples
+and instructions will be added in the future.
+
+
