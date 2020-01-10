@@ -1,6 +1,6 @@
 nix-voyager
-
 ===========
+
 The ``nix-voyager`` project is designed for a very specific use case: you want to use nix, but auditing standards and other team processes require
 you to link compiled code against system-maanged dependencies. ``nix-voyager`` lets you get the best of both worlds. You can take advantage
 of nix expressions, the hydra build server, and nix channels for package delivery. But at the same time, you can let system administrators
